@@ -34,7 +34,7 @@ jobs:
         run: yarn install --non-interactive
 
       - name: Run Lint
-        run: eslint --max-warnings 0 --ext js,ts,md .
+        run: yarn eslint --max-warnings 0 --ext js,ts,md .
 
   test:
     name: Test the code
