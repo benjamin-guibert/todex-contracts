@@ -1,6 +1,7 @@
-# <PROJECT>
+# Token Decentralised Exchange
 
-> <DESCRIPTION>
+> Token decentralised exchange where you can deposit & withdraw tokens, make
+> orders and trades (smart contracts).
 
 [![license-shield][]](LICENSE)
 [![test-shield][]][test-link]
@@ -65,6 +66,10 @@ Check the [`CHANGELOG.md`](CHANGELOG.md) file for the release history.
 We use [SemVer](http://semver.org/) for versioning. For the versions available,
 see the [tags on this repository][tags-link].
 
+## Contributing
+
+This project is not currently open to contributions.
+
 ## Authors
 
 - **[Benjamin Guibert](https://github.com/benjamin-guibert)**: Creator & main
@@ -80,8 +85,8 @@ project.
 This project is licensed under the MIT License. See the [`LICENSE`](LICENSE)
 file for details.
 
-[contributors-link]: https://github.com/benjamin-guibert/<REPO>/contributors
-[license-shield]: https://img.shields.io/github/license/benjamin-guibert/<REPO>.svg
-[test-shield]: https://img.shields.io/github/workflow/status/benjamin-guibert/<REPO>/Test
-[test-link]: https://github.com/benjamin-guibert/<REPO>/actions/workflows/test.yml
-[last-commit-shield]: https://img.shields.io/github/last-commit/benjamin-guibert/<REPO>
+[contributors-link]: https://github.com/benjamin-guibert/todex-contracts/contributors
+[license-shield]: https://img.shields.io/github/license/benjamin-guibert/todex-contracts.svg
+[test-shield]: https://img.shields.io/github/workflow/status/benjamin-guibert/todex-contracts/Test
+[test-link]: https://github.com/benjamin-guibert/todex-contracts/actions/workflows/test.yml
+[last-commit-shield]: https://img.shields.io/github/last-commit/benjamin-guibert/todex-contracts

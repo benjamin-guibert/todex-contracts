@@ -2,7 +2,7 @@
 name: Feature
 about: Feature task
 title: Feature something
-labels: feature
+labels: 'Type: Feature'
 assignees: benjamin-guibert
 ---
 

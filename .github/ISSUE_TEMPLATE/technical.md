@@ -2,7 +2,7 @@
 name: Technical
 about: Technical task
 title: Refactor something
-labels: technical
+labels: 'Type: Technical'
 assignees: benjamin-guibert
 ---
 

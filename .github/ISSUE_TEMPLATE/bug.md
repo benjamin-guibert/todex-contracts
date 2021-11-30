@@ -2,7 +2,7 @@
 name: Bug
 about: Bug task
 title: Fix something
-labels: bug
+labels: 'Type: Bug'
 assignees: benjamin-guibert
 ---
 
