@@ -1,0 +1,27 @@
+{
+  "name": "@benjamin-guibert/<REPO>",
+  "description": "<DESCRIPTION>",
+  "version": "0.1.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/benjamin-guibert/<REPO>.git"
+  },
+  "author": "Benjamin Guibert <contact@bguibert.com>",
+  "license": "MIT",
+  "bugs": "https://github.com/benjamin-guibert/<REPO>/issues",
+  "files": [
+    "build/",
+    "contracts/**/*.sol",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint --max-warnings 0 --ext js,jsx,ts,tsx,md .",
+    "compile": "truffle compile && typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json",
+    "ganache": "NODE_OPTIONS=--openssl-legacy-provider ganache-cli ",
+    "migrate": "tsc -p tsconfig.migrate.json && truffle migrate",
+    "test": "truffle test --compile-none"
+  }
+}

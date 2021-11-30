@@ -1,0 +1,25 @@
+# Dependencies
+
+/node_modules
+
+# Logs
+
+*.log
+
+# Environment
+
+.env
+
+# Deployment
+
+/build
+/migrations
+/types/truffle-contracts
+
+# Temporary files
+
+/tmp
+
+# Miscellaneous
+
+.DS_Store
