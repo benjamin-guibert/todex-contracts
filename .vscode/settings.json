@@ -12,7 +12,7 @@
   "eslint.packageManager": "yarn",
   "eslint.validate": ["markdown", "json", "js", "typescript"],
   "eslint.options": {
-    "extensions": [".js", ".md", ".mdx", ".ts"]
+    "extensions": [".js", ".md", ".ts"]
   },
   "prettier.semi": false,
   "[markdown]": {

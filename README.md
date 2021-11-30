@@ -13,6 +13,8 @@
 
 ## Development
 
+See [`package.json`](package.json) for the list of available scripts.
+
 ### Prerequisites
 
 This project require the following dependencies:
@@ -35,8 +37,6 @@ JSON contracts (to be used by front-end projects) are deployed into the
 `build/contracts` directory
 
 ### Usage
-
-See [`package.json`](package.json) for the list of available scripts.
 
 #### Migration
 
