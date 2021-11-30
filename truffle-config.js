@@ -1,10 +1,16 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+/* eslint-disable @typescript-eslint/no-var-requires */
 require('ts-node').register({
   files: true,
 })
 
+require('chai')
+  .use(require('chai-as-promised'))
+  .should()
+
 module.exports = {
   test_file_extension_regexp: /.*\.ts$/,
+  contracts_directory: './src/contracts/',
+  contracts_build_directory: './build/contracts/',
   networks: {
     development: {
       host: '127.0.0.1',

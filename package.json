@@ -17,9 +17,11 @@
   ],
   "scripts": {
     "format": "prettier --write .",
-    "lint": "eslint --max-warnings 0 --ext js,jsx,ts,tsx,md .",
+    "lint": "eslint --max-warnings 0 --ext js,ts,md .",
     "compile": "truffle compile && typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json",
-    "ganache": "NODE_OPTIONS=--openssl-legacy-provider ganache-cli ",
+    "blockchain": "docker-compose up blockchain",
+    "bc:start": "docker-compose up -d blockchain",
+    "bc:stop": "docker-compose down blockchain",
     "migrate": "tsc -p tsconfig.migrate.json && truffle migrate",
     "test": "truffle test --compile-none"
   },
@@ -34,6 +36,8 @@
     "@types/node": "^16.11.11",
     "@typescript-eslint/eslint-plugin": "^5.5.0",
     "@typescript-eslint/parser": "^5.5.0",
+    "chai": "^4.3.4",
+    "chai-as-promised": "^7.1.1",
     "eslint": "^8.3.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-md": "^1.0.19",

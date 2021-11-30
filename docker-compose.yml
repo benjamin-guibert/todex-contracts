@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  blockchain:
+    container_name: todex_blockchain_dev
+    image: trufflesuite/ganache-cli:v6.12.2
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+    networks:
+      - todex
+
+networks:
+  todex:
+    name: todex-net

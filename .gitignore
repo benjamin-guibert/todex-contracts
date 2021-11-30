@@ -14,7 +14,6 @@
 
 /build
 /migrations
-/types/truffle-contracts
 
 # Temporary files
 

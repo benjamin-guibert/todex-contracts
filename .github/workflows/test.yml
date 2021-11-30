@@ -34,4 +34,50 @@ jobs:
         run: yarn install --non-interactive
 
       - name: Run Lint
-        run: yarn lint
+        run: yarn eslint --max-warnings 0 --ext js,ts,md .
+
+  test:
+    name: Test the code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Get the Node version
+        id: node
+        run: echo "::set-output name=NODE_VERSION::$(cat .node-version)"
+
+      - name: Setup Node ${{ steps.node.outputs.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: '${{ steps.node.outputs.NODE_VERSION }}'
+
+      - name: Cache node modules
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: '/node_modules'
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('/yarn.lock') }}
+
+      - name: Install Truffle
+        run: npm install -g truffle
+
+      - name: Install dependencies
+        run: yarn install --non-interactive
+
+      - name: Start the blockchain
+        run: |
+          docker-compose up -d blockchain
+          sleep 5
+
+      - name: Compile the code
+        run: truffle compile && yarn typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json
+
+
+      - name: Migrate smart contracts
+        run: truffle migrate
+
+      - name: Run tests
+        run: truffle test --compile-none -v

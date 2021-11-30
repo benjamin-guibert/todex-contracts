@@ -7,6 +7,10 @@
 [![test-shield][]][test-link]
 ![last-commit-shield][]
 
+## Smart Contracts
+
+- [`Token.sol`](src/contracts/Token.sol): `ToDEX` token used by the exchange.
+
 ## Development
 
 ### Prerequisites
@@ -15,11 +19,10 @@ This project require the following dependencies:
 
 - [Node.js](https://nodejs.org)
 - [Yarn](https://yarnpkg.com)
+- [Docker](https://www.docker.com) or [Ganache](https://trufflesuite.com/ganache)
 - [Truffle](https://trufflesuite.com/truffle)
-- [Ganache](https://trufflesuite.com/ganache)
-- [ganache-cli](https://github.com/trufflesuite/ganache)
 
-## Setup
+### Setup
 
 Install the dependencies and compile:
 
@@ -28,16 +31,21 @@ yarn install
 yarn compile
 ```
 
-## Usage
+JSON contracts (to be used by front-end projects) are deployed into the
+`build/contracts` directory
+
+### Usage
 
 See [`package.json`](package.json) for the list of available scripts.
 
-### Migration
+#### Migration
 
-Run Ganache in a separate terminal:
+Run Ganache or start the Docker container (see [docker-compose](docker-compose.yml) configuration):
 
 ```bash
-yarn ganache
+yarn blockchain
+// or detached:
+yarn bc:start
 ```
 
 Execute the migration:
@@ -46,16 +54,20 @@ Execute the migration:
 yarn migrate
 ```
 
+### Contributing
+
+This project is not currently open to contributions.
+
 ## Built With
 
-[Node.js](https://nodejs.org) |
-[Yarn](https://yarnpkg.com) |
-[Truffle](https://trufflesuite.com/truffle) |
-[Ganache](https://trufflesuite.com/ganache) |
-[ganache-cli](https://github.com/trufflesuite/ganache) |
-[TypeScript](https://www.typescriptlang.org) |
-[Eslint](https://eslint.org) |
-[Prettier](https://prettier.io) |
+[Node.js](https://nodejs.org)
+, [Yarn](https://yarnpkg.com)
+, [TypeScript](https://www.typescriptlang.org)
+, [Docker](https://www.docker.com)
+, [Eslint](https://eslint.org)
+, [Prettier](https://prettier.io)
+, [Truffle](https://trufflesuite.com/truffle)
+, [Ganache](https://trufflesuite.com/ganache)
 
 ## Release History
 
@@ -65,10 +77,6 @@ Check the [`CHANGELOG.md`](CHANGELOG.md) file for the release history.
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available,
 see the [tags on this repository][tags-link].
-
-## Contributing
-
-This project is not currently open to contributions.
 
 ## Authors
 
