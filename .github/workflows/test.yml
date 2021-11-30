@@ -73,7 +73,7 @@ jobs:
           sleep 5
 
       - name: Compile the code
-        run: truffle compile && typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json
+        run: truffle compile && yarn typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json
 
 
       - name: Migrate smart contracts
