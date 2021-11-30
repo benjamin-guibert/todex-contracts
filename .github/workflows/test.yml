@@ -67,8 +67,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --non-interactive
 
-      - name: Run the blockchain
-        run: docker-compose up -d blockchain
+      - name: Start the blockchain
+        run: |
+          docker-compose up -d blockchain
+          wait 10
 
       - name: Run tests
         run: yarn test

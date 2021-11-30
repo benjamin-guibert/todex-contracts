@@ -43,6 +43,8 @@ See [`package.json`](package.json) for the list of available scripts.
 Run Ganache or start the Docker container (see [docker-compose](docker-compose.yml) configuration):
 
 ```bash
+yarn blockchain
+// or detached:
 yarn bc:start
 ```
 

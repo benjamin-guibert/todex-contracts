@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "lint": "eslint --max-warnings 0 --ext js,jsx,ts,tsx,md .",
     "compile": "truffle compile && typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json",
-    "bc:start": "docker-compose up blockchain",
+    "blockchain": "docker-compose up blockchain",
+    "bc:start": "docker-compose up -d blockchain",
     "bc:stop": "docker-compose down blockchain",
     "migrate": "tsc -p tsconfig.migrate.json && truffle migrate",
     "test": "truffle test --compile-none"
