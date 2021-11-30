@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "format": "prettier --write .",
-    "lint": "eslint --max-warnings 0 --ext js,jsx,ts,tsx,md .",
+    "lint": "eslint --max-warnings 0 --ext js,ts,md .",
     "compile": "truffle compile && typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json",
     "blockchain": "docker-compose up blockchain",
     "bc:start": "docker-compose up -d blockchain",

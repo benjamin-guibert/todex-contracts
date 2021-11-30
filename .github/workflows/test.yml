@@ -34,7 +34,7 @@ jobs:
         run: yarn install --non-interactive
 
       - name: Run Lint
-        run: yarn lint
+        run: eslint --max-warnings 0 --ext js,ts,md .
 
   test:
     name: Test the code
@@ -73,10 +73,11 @@ jobs:
           sleep 5
 
       - name: Compile the code
-        run: yarn compile
+        run: truffle compile && typechain --target truffle-v5 './build/**/*.json' && tsc -p tsconfig.migrate.json
+
 
       - name: Migrate smart contracts
-        run: yarn migrate
+        run: truffle migrate
 
       - name: Run tests
-        run: yarn test
+        run: truffle test --compile-none -v
