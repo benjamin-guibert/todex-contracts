@@ -70,7 +70,7 @@ jobs:
       - name: Start the blockchain
         run: |
           docker-compose up -d blockchain
-          wait 10
+          sleep 10
 
       - name: Run tests
         run: yarn test
