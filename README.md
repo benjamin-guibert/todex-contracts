@@ -19,9 +19,8 @@ This project require the following dependencies:
 
 - [Node.js](https://nodejs.org)
 - [Yarn](https://yarnpkg.com)
+- [Docker](https://www.docker.com) or [Ganache](https://trufflesuite.com/ganache)
 - [Truffle](https://trufflesuite.com/truffle)
-- [Ganache](https://trufflesuite.com/ganache)
-- [ganache-cli](https://github.com/trufflesuite/ganache)
 
 ### Setup
 
@@ -41,10 +40,10 @@ See [`package.json`](package.json) for the list of available scripts.
 
 #### Migration
 
-Run Ganache in a separate terminal:
+Run Ganache or start the Docker container (see [docker-compose](docker-compose.yml) configuration):
 
 ```bash
-yarn ganache
+yarn bc:start
 ```
 
 Execute the migration:
@@ -62,11 +61,11 @@ This project is not currently open to contributions.
 [Node.js](https://nodejs.org)
 , [Yarn](https://yarnpkg.com)
 , [TypeScript](https://www.typescriptlang.org)
+, [Docker](https://www.docker.com)
 , [Eslint](https://eslint.org)
 , [Prettier](https://prettier.io)
 , [Truffle](https://trufflesuite.com/truffle)
 , [Ganache](https://trufflesuite.com/ganache)
-, [ganache-cli](https://github.com/trufflesuite/ganache)
 
 ## Release History
 
