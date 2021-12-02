@@ -1,56 +1,21 @@
-import { ERC20Instance } from '../../types/truffle-contracts'
+import { IpcProvider } from 'web3-core'
 
-export const describeErc20Token = (
-  name: string,
-  symbol: string,
-  decimals: number,
-  initializeToken: () => Promise<ERC20Instance>
-): void => {
-  let token: ERC20Instance
+export const BURN_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-  describe('ERC-20 Token', () => {
-    describe('#name()', () => {
-      let result: string
+export const advanceBlockTime = async (seconds: number): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    ;(web3.currentProvider as IpcProvider).send(
+      {
+        jsonrpc: '2.0',
+        method: 'evm_increaseTime + evm_mine',
+        params: [seconds],
+        id: new Date().getTime(),
+      },
+      (error, result) => {
+        if (error || !result) return reject(error)
 
-      before(async () => {
-        token = await initializeToken()
-        result = await token.name()
-      })
-
-      it('should return name', () => result.should.equal(name))
-    })
-
-    describe('#symbol()', () => {
-      let result: string
-
-      before(async () => {
-        token = await initializeToken()
-        result = await token.symbol()
-      })
-
-      it('should return symbol', () => result.should.equal(symbol))
-    })
-
-    describe('#decimals()', () => {
-      let result: number
-
-      before(async () => {
-        token = await initializeToken()
-        result = (await token.decimals()).toNumber()
-      })
-
-      it('should return decimals', () => result.should.equal(decimals))
-    })
-
-    describe('#totalSupply()', () => {
-      let result: number
-
-      before(async () => {
-        token = await initializeToken()
-        result = Number(await token.totalSupply())
-      })
-
-      it('should return total supply', () => result.should.equal(0))
-    })
+        resolve(Math.floor(result.id / 1000).toString())
+      }
+    )
   })
 }

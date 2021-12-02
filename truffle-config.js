@@ -3,9 +3,7 @@ require('ts-node').register({
   files: true,
 })
 
-require('chai')
-  .use(require('chai-as-promised'))
-  .should()
+require('chai').use(require('chai-as-promised')).should()
 
 module.exports = {
   test_file_extension_regexp: /.*\.ts$/,
