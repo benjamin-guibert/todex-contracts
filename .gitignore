@@ -1,10 +1,10 @@
-# Dependencies
-
-/node_modules
-
 # Logs
 
 *.log
+
+# Temporary files
+
+/tmp
 
 # Environment
 
@@ -14,14 +14,19 @@
 .env.test.local
 .env.production.local
 
-# Deployment
+# Dependencies
 
-/build
-/migrations
+/node_modules
 
-# Temporary files
+# Development
 
-/tmp
+/cache
+/artifacts
+/typechain
+
+# Test
+
+/coverage
 
 # Miscellaneous
 

@@ -1,6 +1,9 @@
 module.exports = {
   root: true,
   env: {
+    browser: false,
+    es2021: true,
+    mocha: true,
     node: true,
   },
   parser: '@typescript-eslint/parser',
@@ -10,15 +13,15 @@ module.exports = {
     ecmaFeatures: {
       globalReturn: true,
       impliedStrict: true,
-      jsx: true,
     },
   },
   plugins: ['@typescript-eslint'],
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier', 'plugin:md/recommended'],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:md/recommended', 'prettier'],
   overrides: [
     {
       files: ['*.md'],
-      parser: 'markdown-eslint-parser',
+      parser: 'eslint-plugin-markdownlint/parser',
+      extends: ['plugin:markdownlint/recommended'],
     },
   ],
 }

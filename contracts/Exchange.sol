@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity ^0.8.0;
 
-import './Token.sol';
-import '@openzeppelin/contracts/utils/Counters.sol';
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import "hardhat/console.sol";
+import "./Token.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract Exchange {
   using Counters for Counters.Counter;
   using SafeMath for uint256;
 
-  address constant ETHER = address(0);
+  address private constant ETHER = address(0);
 
   enum OrderStatuses {
     Pending,
@@ -19,7 +20,6 @@ contract Exchange {
 
   struct Order {
     uint256 id;
-    uint256 timestamp;
     OrderStatuses status;
     address account;
     address sellToken;
@@ -41,7 +41,6 @@ contract Exchange {
   event WithdrawToken(address account, address token, uint256 amount, uint256 newBalance);
   event CreateOrder(
     uint256 id,
-    uint256 timestamp,
     address account,
     address sellToken,
     uint256 sellAmount,
@@ -50,7 +49,6 @@ contract Exchange {
   );
   event CancelOrder(
     uint256 id,
-    uint256 timestamp,
     address account,
     address sellToken,
     uint256 sellAmount,
@@ -58,7 +56,6 @@ contract Exchange {
     uint256 buyAmount
   );
   event Trade(
-    uint256 timestamp,
     uint256 orderId,
     address sellAccount,
     address sellToken,
@@ -80,7 +77,7 @@ contract Exchange {
   }
 
   function depositToken(address _token, uint256 _amount) public {
-    require(Token(_token).transferFrom(msg.sender, address(this), _amount));
+    require(Token(_token).transferFrom(msg.sender, address(this), _amount), "Cannot transfer token");
 
     tokenBalanceOf[_token][msg.sender] = tokenBalanceOf[_token][msg.sender].add(_amount);
 
@@ -88,20 +85,21 @@ contract Exchange {
   }
 
   function withdrawEther(uint256 _amount) public {
-    require(ethBalanceOf[msg.sender] >= _amount, 'Insufficient funds');
+    require(ethBalanceOf[msg.sender] >= _amount, "Insufficient funds");
 
     ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].sub(_amount);
-    (bool called, ) = msg.sender.call{value: _amount}('');
-    require(called);
+    // solhint-disable-next-line avoid-low-level-calls
+    (bool called, ) = msg.sender.call{value: _amount}("");
+    require(called, "Cannot send Ether");
 
     emit WithdrawEther(msg.sender, _amount, ethBalanceOf[msg.sender]);
   }
 
   function withdrawToken(address _token, uint256 _amount) public {
-    require(tokenBalanceOf[_token][msg.sender] >= _amount, 'Insufficient funds');
+    require(tokenBalanceOf[_token][msg.sender] >= _amount, "Insufficient funds");
 
     tokenBalanceOf[_token][msg.sender] = tokenBalanceOf[_token][msg.sender].sub(_amount);
-    require(Token(_token).transfer(msg.sender, _amount));
+    require(Token(_token).transfer(msg.sender, _amount), "Cannot transfer token");
 
     emit WithdrawToken(msg.sender, _token, _amount, tokenBalanceOf[_token][msg.sender]);
   }
@@ -112,12 +110,11 @@ contract Exchange {
     address _buyToken,
     uint256 _buyAmount
   ) public {
-    require(_buyToken != _sellToken, 'Assets are identical');
+    require(_buyToken != _sellToken, "Assets are identical");
 
     ordersCounter.increment();
     orders[ordersCounter.current()] = Order(
       ordersCounter.current(),
-      block.timestamp,
       OrderStatuses.Pending,
       msg.sender,
       _sellToken,
@@ -126,38 +123,22 @@ contract Exchange {
       _buyAmount
     );
 
-    emit CreateOrder(
-      ordersCounter.current(),
-      block.timestamp,
-      msg.sender,
-      _sellToken,
-      _sellAmount,
-      _buyToken,
-      _buyAmount
-    );
+    emit CreateOrder(ordersCounter.current(), msg.sender, _sellToken, _sellAmount, _buyToken, _buyAmount);
   }
 
   function cancelOrder(uint256 _id) public {
     Order storage order = _getRequiredOrder(_id);
-    require(order.status == OrderStatuses.Pending, 'Order not cancellable');
-    require(order.account == msg.sender, 'Not owner of the order');
+    require(order.status == OrderStatuses.Pending, "Order not cancellable");
+    require(order.account == msg.sender, "Not owner of the order");
 
     order.status = OrderStatuses.Cancelled;
 
-    emit CancelOrder(
-      order.id,
-      order.timestamp,
-      order.account,
-      order.sellToken,
-      order.sellAmount,
-      order.buyToken,
-      order.buyAmount
-    );
+    emit CancelOrder(order.id, order.account, order.sellToken, order.sellAmount, order.buyToken, order.buyAmount);
   }
 
   function fillOrder(uint256 _id) public {
     Order storage order = _getRequiredOrder(_id);
-    require(order.status == OrderStatuses.Pending, 'Order not fillable');
+    require(order.status == OrderStatuses.Pending, "Order not fillable");
 
     _trade(_id, order.account, order.sellToken, order.sellAmount, msg.sender, order.buyToken, order.buyAmount);
     order.status = OrderStatuses.Filled;
@@ -165,7 +146,7 @@ contract Exchange {
 
   function _getRequiredOrder(uint256 _id) private view returns (Order storage) {
     Order storage order = orders[_id];
-    require(order.id == _id, 'Order unknown');
+    require(order.id == _id, "Order unknown");
 
     return order;
   }
@@ -180,18 +161,18 @@ contract Exchange {
     uint256 _buyAmount
   ) internal {
     uint256 feeAmount = _buyAmount.mul(feePercent).div(100);
-    require(_buyToken != _sellToken, 'Assets are identical');
+    require(_buyToken != _sellToken, "Assets are identical");
     require(
       _buyToken == ETHER
         ? ethBalanceOf[_buyAccount] >= _buyAmount.add(feeAmount)
         : tokenBalanceOf[_buyToken][_buyAccount] >= _buyAmount.add(feeAmount),
-      'Insufficient funds for buyer'
+      "Insufficient funds for buyer"
     );
     require(
       _sellToken == ETHER
         ? ethBalanceOf[_sellAccount] >= _sellAmount
         : tokenBalanceOf[_sellToken][_sellAccount] >= _sellAmount,
-      'Insufficient funds for seller'
+      "Insufficient funds for seller"
     );
 
     if (_buyToken == ETHER) {
@@ -212,6 +193,6 @@ contract Exchange {
       tokenBalanceOf[_sellToken][_buyAccount] = tokenBalanceOf[_sellToken][_buyAccount].add(_sellAmount);
     }
 
-    emit Trade(block.timestamp, _orderId, _sellAccount, _sellToken, _sellAmount, _buyAccount, _buyToken, _buyAmount);
+    emit Trade(_orderId, _sellAccount, _sellToken, _sellAmount, _buyAccount, _buyToken, _buyAmount);
   }
 }

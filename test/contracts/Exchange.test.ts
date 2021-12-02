@@ -1,19 +1,34 @@
-import truffleAssert from 'truffle-assertions'
-import { ExchangeInstance, TokenInstance } from '../../types/truffle-contracts'
-import { AllEvents } from '../../types/truffle-contracts/Exchange'
-import { advanceBlockTime, BURN_ADDRESS as ETHER_ADDRESS } from './helpers'
+import { expect } from 'chai'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { ethers } from 'hardhat'
+import { Exchange, Exchange__factory, Token, Token__factory } from '../../typechain-types'
+import { BigNumber } from '@ethersproject/bignumber'
+import { BURN_ADDRESS as ETHER_ADDRESS } from './helpers'
+import { ContractTransaction } from '@ethersproject/contracts'
 
-const Token = artifacts.require('Token')
-const Exchange = artifacts.require('Exchange')
+describe('Exchange', () => {
+  const initialSupply = BigNumber.from('1000000000000000000000')
+  const feePercent = 10
 
-contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
-  const initialSupply = '100000000000000000000000000'
-  const feePercent = '10'
-  const initializeToken = () => Token.new(initialSupply, { from: deployer })
-  const initializeExchange = () => Exchange.new(feeAccount, feePercent, { from: deployer })
+  let feeAccount: SignerWithAddress
+  let user1: SignerWithAddress
+  let user2: SignerWithAddress
+  let initializeToken: () => Promise<Token>
+  let initializeExchange: () => Promise<Exchange>
+  let token: Token
+  let exchange: Exchange
 
-  let token: TokenInstance
-  let exchange: ExchangeInstance
+  before(async () => {
+    ;[, feeAccount, user1, user2] = await ethers.getSigners()
+    initializeToken = async () => {
+      const factory = (await ethers.getContractFactory('Token')) as Token__factory
+      return (await factory.deploy(initialSupply)).deployed()
+    }
+    initializeExchange = async () => {
+      const factory = (await ethers.getContractFactory('Exchange')) as Exchange__factory
+      return (await factory.deploy(feeAccount.address, feePercent)).deployed()
+    }
+  })
 
   describe('#feeAccount()', () => {
     let result: string
@@ -23,207 +38,205 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
       result = await exchange.feeAccount()
     })
 
-    it('should return fee account', () => result.toString().should.equal(feeAccount))
+    it('should return fee account', () => expect(result).to.equal(feeAccount.address))
   })
 
   describe('#feePercent()', () => {
-    let result: BN
+    let result: number
 
     before(async () => {
       exchange = await initializeExchange()
       result = await exchange.feePercent()
     })
 
-    it('should return fee percent', () => result.toString().should.equal(feePercent.toString()))
+    it('should return fee percent', () => expect(result).to.equal(feePercent))
   })
 
   describe('#ethBalanceOf', () => {
-    const value = '1000000000000000000'
+    const value = BigNumber.from('1000000000000000000')
 
-    let result: BN
+    let result: BigNumber
 
     context('when exists', () => {
       before(async () => {
         exchange = await initializeExchange()
-        await exchange.depositEther({ value, from: user1 })
-        result = await exchange.ethBalanceOf(user1)
+        await exchange.connect(user1).depositEther({ value })
+        result = await exchange.ethBalanceOf(user1.address)
       })
 
-      it('should return balance', () => result.toString().should.equal(value))
+      it('should return balance', () => expect(result).to.equal(value))
     })
 
     context('when none', () => {
       before(async () => {
         exchange = await initializeExchange()
-        result = await exchange.ethBalanceOf(user1)
+        result = await exchange.ethBalanceOf(user1.address)
       })
 
-      it('should return balance', () => result.toString().should.equal('0'))
+      it('should return balance', () => expect(result).to.equal(BigNumber.from(0)))
     })
   })
 
   describe('#tokenBalanceOf', () => {
-    const value = '1000000000000000000'
+    const value = BigNumber.from('1000000000000000000')
 
-    let result: BN
+    let result: BigNumber
 
     context('when exists', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1, value, { from: deployer })
-        await token.approve(exchange.address, value, { from: user1 })
-        await exchange.depositToken(token.address, value, { from: user1 })
-        result = await exchange.tokenBalanceOf(token.address, user1)
+        await token.transfer(user1.address, value)
+        await token.connect(user1).approve(exchange.address, value)
+        await exchange.connect(user1).depositToken(token.address, value)
+        result = await exchange.tokenBalanceOf(token.address, user1.address)
       })
 
-      it('should return balance', () => result.toString().should.equal(value))
+      it('should return balance', () => expect(result).to.equal(value))
     })
 
     context('when none', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user2, value, { from: deployer })
-        await token.approve(exchange.address, value, { from: user2 })
-        await exchange.depositToken(token.address, value, { from: user2 })
-        result = await exchange.tokenBalanceOf(token.address, user1)
+        await token.transfer(user2.address, value)
+        await token.connect(user2).approve(exchange.address, value)
+        await exchange.connect(user2).depositToken(token.address, value)
+
+        result = await exchange.tokenBalanceOf(token.address, user1.address)
       })
 
-      it('should return balance', () => result.toString().should.equal('0'))
+      it('should return balance', () => expect(result).to.equal(BigNumber.from(0)))
     })
 
     context('when unknown', () => {
-      let otherToken: TokenInstance
+      let otherToken: Token
 
       before(async () => {
         token = await initializeToken()
         otherToken = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1, value, { from: deployer })
-        await otherToken.transfer(user1, value, { from: deployer })
-        await otherToken.transfer(user2, value, { from: deployer })
-        await otherToken.approve(exchange.address, value, { from: user2 })
-        await exchange.depositToken(otherToken.address, value, { from: user2 })
+        await token.transfer(user1.address, value)
+        await otherToken.transfer(user1.address, value)
+        await otherToken.transfer(user2.address, value)
+        await otherToken.connect(user2).approve(exchange.address, value)
+        await exchange.connect(user2).depositToken(otherToken.address, value)
 
-        result = await exchange.tokenBalanceOf(token.address, user1)
+        result = await exchange.tokenBalanceOf(token.address, user1.address)
       })
 
-      it('should return balance', () => result.toString().should.equal('0'))
-    })
-  })
-
-  describe('#orders()', () => {
-    const sellAmount = '10000000000'
-    const buyAmount = '1000000000000000000'
-
-    let timestamp: BN
-    let result: {
-      0: BN
-      1: BN
-      2: BN
-      3: string
-      4: string
-      5: BN
-      6: string
-      7: BN
-    }
-
-    before(async () => {
-      token = await initializeToken()
-      exchange = await initializeExchange()
-      await exchange.createOrder(ETHER_ADDRESS, sellAmount, token.address, sellAmount, { from: user1 })
-      await exchange.createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount, { from: user1 })
-      await exchange.createOrder(ETHER_ADDRESS, buyAmount, token.address, buyAmount, { from: user1 })
-      timestamp = web3.utils.toBN(await advanceBlockTime(1))
-      result = await exchange.orders(2)
+      it('should return balance', () => expect(result).to.equal(BigNumber.from(0)))
     })
 
-    it('should return orders', () => {
-      result[0].toString().should.equal('2')
-      result[1].sub(timestamp).lte(web3.utils.toBN(1)).should.true
-      result[2].toString().should.equal('0')
-      result[3].should.equal(user1)
-      result[4].should.equal(ETHER_ADDRESS)
-      result[5].toString().should.equal(sellAmount)
-      result[6].toString().should.equal(token.address)
-      result[7].toString().should.equal(buyAmount)
+    describe('#orders()', () => {
+      const sellAmount = BigNumber.from('10000000000')
+      const buyAmount = BigNumber.from('1000000000000000000')
+
+      let result: {
+        0: BigNumber
+        1: number
+        2: string
+        3: string
+        4: BigNumber
+        5: string
+        6: BigNumber
+      }
+
+      before(async () => {
+        token = await initializeToken()
+        exchange = await initializeExchange()
+        await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, sellAmount)
+        await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount)
+        await exchange.connect(user1).createOrder(ETHER_ADDRESS, buyAmount, token.address, buyAmount)
+
+        result = await exchange.orders(2)
+      })
+
+      it('should return orders', () => {
+        expect(result[0]).to.equal(BigNumber.from(2))
+        expect(result[1]).to.equal(0)
+        expect(result[2]).to.equal(user1.address)
+        expect(result[3]).to.equal(ETHER_ADDRESS)
+        expect(result[4]).to.equal(BigNumber.from(sellAmount))
+        expect(result[5]).to.equal(token.address)
+        expect(result[6]).to.equal(BigNumber.from(buyAmount))
+      })
     })
   })
 
   describe('#depositEther()', () => {
-    const value = '1000000000000000000'
+    const value = BigNumber.from('1000000000000000000')
 
-    let transaction: Truffle.TransactionResponse<AllEvents>
+    let transaction: ContractTransaction
 
     before(async () => {
       exchange = await initializeExchange()
-      await token.transfer(user1, value, { from: deployer })
-      await exchange.depositEther({ value: '2000000000000000000', from: user1 })
+      await token.transfer(user1.address, value)
+      await exchange.connect(user1).depositEther({ value: '2000000000000000000' })
 
-      transaction = await exchange.depositEther({ value, from: user1 })
+      transaction = await exchange.connect(user1).depositEther({ value })
     })
 
     it('should increase contract Ether balance', async () => {
-      const balance = await web3.eth.getBalance(exchange.address)
-      balance.toString().should.eq('3000000000000000000')
+      const balance = await ethers.provider.getBalance(exchange.address)
+      expect(balance).to.eq(BigNumber.from('3000000000000000000'))
     })
 
     it('should increase exchange user1 Ether balance', async () => {
-      const balance = await exchange.ethBalanceOf(user1)
-      balance.toString().should.equal('3000000000000000000')
+      const balance = await exchange.ethBalanceOf(user1.address)
+      expect(balance).to.equal(BigNumber.from('3000000000000000000'))
     })
 
-    it('should emit DepositEther', () => {
-      truffleAssert.eventEmitted(transaction, 'DepositEther', {
-        account: user1,
-        amount: web3.utils.toBN(value),
-        newBalance: web3.utils.toBN('3000000000000000000'),
-      })
+    it('should emit DepositEther', async () => {
+      await expect(transaction)
+        .to.emit(exchange, 'DepositEther')
+        .withArgs(user1.address, BigNumber.from(value), BigNumber.from('3000000000000000000'))
     })
   })
 
   describe('#depositToken()', () => {
     context('when success', () => {
-      let otherToken: TokenInstance
-      let transaction: Truffle.TransactionResponse<AllEvents>
+      let otherToken: Token
+      let transaction: ContractTransaction
 
       before(async () => {
         token = await initializeToken()
         otherToken = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1, '10000000000000000000', { from: deployer })
-        await otherToken.transfer(user1, '10000000000000000000', { from: deployer })
-        await token.transfer(user2, '10000000000000000000', { from: deployer })
-        await otherToken.transfer(user2, '10000000000000000000', { from: deployer })
-        await token.approve(exchange.address, '3000000000000000000', { from: user2 })
-        await exchange.depositToken(token.address, '3000000000000000000', { from: user2 })
-        await otherToken.approve(exchange.address, '9000000000000000000', { from: user2 })
-        await exchange.depositToken(otherToken.address, '9000000000000000000', { from: user2 })
-        await token.approve(exchange.address, '5000000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '5000000000000000000', { from: user1 })
-        await token.approve(exchange.address, '1000000000000000000', { from: user1 })
+        await token.transfer(user1.address, '10000000000000000000')
+        await otherToken.transfer(user1.address, '10000000000000000000')
+        await token.transfer(user2.address, '10000000000000000000')
+        await otherToken.transfer(user2.address, '10000000000000000000')
+        await token.connect(user2).approve(exchange.address, '3000000000000000000')
+        await exchange.connect(user2).depositToken(token.address, '3000000000000000000')
+        await otherToken.connect(user2).approve(exchange.address, '9000000000000000000')
+        await exchange.connect(user2).depositToken(otherToken.address, '9000000000000000000')
+        await token.connect(user1).approve(exchange.address, '5000000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '5000000000000000000')
+        await token.connect(user1).approve(exchange.address, '1000000000000000000')
 
-        transaction = await exchange.depositToken(token.address, '1000000000000000000', { from: user1 })
+        transaction = await exchange.connect(user1).depositToken(token.address, '1000000000000000000')
       })
 
       it('should increase exchange user1 token balance', async () => {
-        const balance = await exchange.tokenBalanceOf(token.address, user1)
-        balance.toString().should.equal('6000000000000000000')
+        const balance = await exchange.tokenBalanceOf(token.address, user1.address)
+        expect(balance).to.equal(BigNumber.from('6000000000000000000'))
       })
 
       it('should decrease user1 token balance', async () => {
-        const balance = await token.balanceOf(user1)
-        balance.toString().should.equal('4000000000000000000')
+        const balance = await token.balanceOf(user1.address)
+        expect(balance).to.equal(BigNumber.from('4000000000000000000'))
       })
 
-      it('should emit DepositToken', () => {
-        truffleAssert.eventEmitted(transaction, 'DepositToken', {
-          account: user1,
-          token: token.address,
-          amount: web3.utils.toBN('1000000000000000000'),
-          newBalance: web3.utils.toBN('6000000000000000000'),
-        })
+      it('should emit DepositToken', async () => {
+        await expect(transaction)
+          .to.emit(exchange, 'DepositToken')
+          .withArgs(
+            user1.address,
+            token.address,
+            BigNumber.from('1000000000000000000'),
+            BigNumber.from('6000000000000000000')
+          )
       })
     })
 
@@ -231,15 +244,14 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        token.transfer(user1, '4000000000000000000', { from: deployer })
-        await token.approve(exchange.address, '3000000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '3000000000000000000', { from: user1 })
-        await token.approve(exchange.address, '2000000000000000000', { from: user1 })
+        token.transfer(user1.address, '4000000000000000000')
+        await token.connect(user1).approve(exchange.address, '3000000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '3000000000000000000')
+        await token.connect(user1).approve(exchange.address, '2000000000000000000')
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(
-          exchange.depositToken(token.address, '2000000000000000000', { from: user1 }),
+        await expect(exchange.connect(user1).depositToken(token.address, '2000000000000000000')).to.be.revertedWith(
           'ERC20: transfer amount exceeds balance'
         ))
     })
@@ -247,122 +259,122 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
     context('when transfer not allowed', () => {
       before(async () => {
         token = await initializeToken()
-        token.transfer(user1, '4000000000000000000')
+        token.transfer(user1.address, '4000000000000000000')
         exchange = await initializeExchange()
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(
-          exchange.depositToken(token.address, '2000000000000000000', { from: user1 }),
+        await expect(exchange.connect(user1).depositToken(token.address, '2000000000000000000')).to.be.revertedWith(
           'ERC20: transfer amount exceeds allowance'
         ))
     })
   })
 
   describe('#withdrawEther()', () => {
-    let initUserBalance: BN
-    let transaction: Truffle.TransactionResponse<AllEvents>
+    let initUserBalance: BigNumber
 
     context('when success', () => {
+      let transaction: ContractTransaction
+
       before(async () => {
         exchange = await initializeExchange()
-        await exchange.depositEther({ value: '9000000000000000000', from: user2 })
-        await exchange.depositEther({ value: '3000000000000000000', from: user1 })
-        initUserBalance = web3.utils.toBN(await web3.eth.getBalance(user1))
+        await exchange.connect(user2).depositEther({ value: '9000000000000000000' })
+        await exchange.connect(user1).depositEther({ value: '3000000000000000000' })
+        initUserBalance = await ethers.provider.getBalance(user1.address)
 
-        transaction = await exchange.withdrawEther('1000000000000000000', { from: user1 })
+        transaction = await exchange.connect(user1).withdrawEther('1000000000000000000')
       })
 
       it('should decrease contract Ether balance', async () => {
-        const balance = await web3.eth.getBalance(exchange.address)
-        balance.should.eq('11000000000000000000')
+        const balance = await ethers.provider.getBalance(exchange.address)
+        expect(balance).to.equal(BigNumber.from('11000000000000000000'))
       })
 
       it('should increase user Ether balance', async () => {
-        const balance = web3.utils.toBN(await web3.eth.getBalance(user1))
-        balance.gt(initUserBalance).should.true
+        const balance = await ethers.provider.getBalance(user1.address)
+        expect(balance.gt(initUserBalance)).to.true
       })
 
       it('should decrease exchange user Ether balance', async () => {
-        const balance = await exchange.ethBalanceOf(user1)
-        balance.toString().should.equal('2000000000000000000')
+        const balance = await exchange.ethBalanceOf(user1.address)
+        expect(balance).to.equal(BigNumber.from('2000000000000000000'))
       })
 
-      it('should emit WithdrawEther', () => {
-        truffleAssert.eventEmitted(transaction, 'WithdrawEther', {
-          account: user1,
-          amount: web3.utils.toBN('1000000000000000000'),
-          newBalance: web3.utils.toBN('2000000000000000000'),
-        })
+      it('should emit WithdrawEther', async () => {
+        await expect(transaction)
+          .to.emit(exchange, 'WithdrawEther')
+          .withArgs(user1.address, BigNumber.from('1000000000000000000'), BigNumber.from('2000000000000000000'))
       })
     })
 
     context('when insufficient funds', () => {
       before(async () => {
         exchange = await initializeExchange()
-        await exchange.depositEther({ value: '3000000000000000000', from: user1 })
+        await exchange.connect(user1).depositEther({ value: '3000000000000000000' })
       })
+
       it('should revert', async () =>
-        await truffleAssert.reverts(
-          exchange.withdrawEther('5000000000000000000', { from: user1 }),
+        await expect(exchange.connect(user1).withdrawEther('5000000000000000000')).to.be.revertedWith(
           'Insufficient funds'
         ))
     })
   })
 
   describe('#withdrawToken()', () => {
-    let otherToken: TokenInstance
+    let otherToken: Token
 
     context('when success', () => {
-      let transaction: Truffle.TransactionResponse<AllEvents>
+      let transaction: ContractTransaction
 
       before(async () => {
         token = await initializeToken()
         otherToken = await initializeToken()
-        await token.transfer(user1, '3000000000000000000', { from: deployer })
-        await otherToken.transfer(user1, '4000000000000000000', { from: deployer })
+        await token.transfer(user1.address, '3000000000000000000')
+        await otherToken.transfer(user1.address, '4000000000000000000')
         exchange = await initializeExchange()
-        await token.approve(exchange.address, '9000000000000000000', { from: deployer })
-        await exchange.depositToken(token.address, '9000000000000000000', { from: deployer })
-        await token.approve(exchange.address, '3000000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '3000000000000000000', { from: user1 })
-        await otherToken.approve(exchange.address, '4000000000000000000', { from: user1 })
-        await exchange.depositToken(otherToken.address, '4000000000000000000', { from: user1 })
+        await token.approve(exchange.address, '9000000000000000000')
+        await exchange.depositToken(token.address, '9000000000000000000')
+        await token.connect(user1).approve(exchange.address, '3000000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '3000000000000000000')
+        await otherToken.connect(user1).approve(exchange.address, '4000000000000000000')
+        await exchange.connect(user1).depositToken(otherToken.address, '4000000000000000000')
 
-        transaction = await exchange.withdrawToken(token.address, '1000000000000000000', { from: user1 })
+        transaction = await exchange.connect(user1).withdrawToken(token.address, '1000000000000000000')
       })
 
       it('should increase user token balance', async () => {
-        const balance = await token.balanceOf(user1)
-        balance.toString().should.equal('1000000000000000000')
+        const balance = await token.balanceOf(user1.address)
+        expect(balance).to.equal(BigNumber.from('1000000000000000000'))
       })
 
       it('should decrease exchange user token balance', async () => {
-        const balance = await exchange.tokenBalanceOf(token.address, user1)
-        balance.toString().should.equal('2000000000000000000')
+        const balance = await exchange.tokenBalanceOf(token.address, user1.address)
+        expect(balance).to.equal('2000000000000000000')
       })
 
-      it('should emit WithdrawToken', () => {
-        truffleAssert.eventEmitted(transaction, 'WithdrawToken', {
-          account: user1,
-          amount: web3.utils.toBN('1000000000000000000'),
-          newBalance: web3.utils.toBN('2000000000000000000'),
-        })
+      it('should emit WithdrawToken', async () => {
+        await expect(transaction)
+          .to.emit(exchange, 'WithdrawToken')
+          .withArgs(
+            user1.address,
+            token.address,
+            BigNumber.from('1000000000000000000'),
+            BigNumber.from('2000000000000000000')
+          )
       })
     })
 
     context('when insufficient funds', () => {
       before(async () => {
         token = await initializeToken()
-        await token.transfer(user1, '1000000000000000000', { from: deployer })
+        await token.transfer(user1.address, '1000000000000000000')
         exchange = await initializeExchange()
-        await token.approve(exchange.address, '1000000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '1000000000000000000', { from: user1 })
+        await token.connect(user1).approve(exchange.address, '1000000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '1000000000000000000')
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(
-          exchange.withdrawToken(token.address, '2000000000000000000', { from: user1 }),
+        await expect(exchange.connect(user1).withdrawToken(token.address, '2000000000000000000')).to.be.revertedWith(
           'Insufficient funds'
         ))
     })
@@ -371,75 +383,49 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
       before(async () => {
         token = await initializeToken()
         otherToken = await initializeToken()
-        await token.transfer(user1, '3000000000000000000', { from: deployer })
-        await otherToken.transfer(user1, '3000000000000000000', { from: deployer })
+        await token.transfer(user1.address, '3000000000000000000')
+        await otherToken.transfer(user1.address, '3000000000000000000')
         exchange = await initializeExchange()
-        await token.approve(exchange.address, '1000000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '1000000000000000000', { from: user1 })
+        await token.connect(user1).approve(exchange.address, '1000000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '1000000000000000000')
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(
-          exchange.withdrawToken(otherToken.address, '1000000000000000000', { from: deployer }),
+        await expect(exchange.withdrawToken(otherToken.address, '1000000000000000000')).to.be.revertedWith(
           'Insufficient funds'
         ))
     })
   })
 
   describe('#createOrder()', () => {
-    const sellAmount = '10000000000'
-    const buyAmount = '1000000000000000000'
-
-    let timestamp: BN
+    const sellAmount = BigNumber.from('10000000000')
+    const buyAmount = BigNumber.from('1000000000000000000')
 
     context('when success', () => {
-      let transaction: Truffle.TransactionResponse<AllEvents>
+      let transaction: ContractTransaction
 
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        timestamp = web3.utils.toBN(await advanceBlockTime(1))
 
-        transaction = await exchange.createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount, { from: user1 })
+        transaction = await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount)
       })
 
       it('should create order', async () => {
         const order = await exchange.orders(1)
-        order[0].toString().should.equal('1')
-        order[1].sub(timestamp).lte(web3.utils.toBN(1)).should.true
-        order[1].sub(timestamp).gte(web3.utils.toBN(-1)).should.true
-        order[2].toString().should.equal('0')
-        order[3].should.equal(user1)
-        order[4].should.equal(ETHER_ADDRESS)
-        order[5].toString().should.equal(sellAmount)
-        order[6].toString().should.equal(token.address)
-        order[7].toString().should.equal(buyAmount)
+        expect(order[0]).to.equal(1)
+        expect(order[1]).to.equal(0)
+        expect(order[2]).to.equal(user1.address)
+        expect(order[3]).to.equal(ETHER_ADDRESS)
+        expect(order[4]).to.equal(sellAmount)
+        expect(order[5]).to.equal(token.address)
+        expect(order[6]).to.equal(buyAmount)
       })
 
-      it('should emit CreateOrder', () => {
-        truffleAssert.eventEmitted(
-          transaction,
-          'CreateOrder',
-          (event: {
-            id: BN
-            timestamp: BN
-            account: string
-            sellToken: string
-            sellAmount: BN
-            buyToken: string
-            buyAmount: BN
-          }) => {
-            return (
-              event.id.toString() == '1' &&
-              event.timestamp.sub(timestamp).lte(web3.utils.toBN(1)) &&
-              event.account == user1 &&
-              event.sellToken == ETHER_ADDRESS &&
-              event.sellAmount.toString() == sellAmount &&
-              event.buyToken == token.address &&
-              event.buyAmount.toString() == buyAmount
-            )
-          }
-        )
+      it('should emit CreateOrder', async () => {
+        await expect(transaction)
+          .to.emit(exchange, 'CreateOrder')
+          .withArgs(1, user1.address, ETHER_ADDRESS, sellAmount, token.address, buyAmount)
       })
     })
 
@@ -450,60 +436,36 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(
-          exchange.createOrder(token.address, buyAmount, token.address, sellAmount, { from: user1 }),
-          'Assets are identical'
-        ))
+        await expect(
+          exchange.connect(user1).createOrder(token.address, buyAmount, token.address, sellAmount)
+        ).to.be.revertedWith('Assets are identical'))
     })
   })
 
   describe('#cancelOrder()', () => {
-    const sellAmount = '10000000000'
-    const buyAmount = '1000000000000000000'
-
-    let timestamp: BN
+    const sellAmount = BigNumber.from('10000000000')
+    const buyAmount = BigNumber.from('1000000000000000000')
 
     context('when success', () => {
-      let transaction: Truffle.TransactionResponse<AllEvents>
+      let transaction: ContractTransaction
 
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        timestamp = web3.utils.toBN(await advanceBlockTime(1))
-        await exchange.createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount, { from: user1 })
+        await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount)
 
-        transaction = await exchange.cancelOrder(1, { from: user1 })
+        transaction = await exchange.connect(user1).cancelOrder(1)
       })
 
       it('should cancel the order', async () => {
         const order = await exchange.orders(1)
-        order[2].toString().should.equal('2')
+        expect(order[1]).to.equal(2)
       })
 
-      it('should emit CancelOrder', () => {
-        truffleAssert.eventEmitted(
-          transaction,
-          'CancelOrder',
-          (event: {
-            id: BN
-            timestamp: BN
-            account: string
-            sellToken: string
-            sellAmount: BN
-            buyToken: string
-            buyAmount: BN
-          }) => {
-            return (
-              event.id.toString() == '1' &&
-              event.timestamp.sub(timestamp).lte(web3.utils.toBN(1)) &&
-              event.account == user1 &&
-              event.sellToken == ETHER_ADDRESS &&
-              event.sellAmount.toString() == sellAmount &&
-              event.buyToken == token.address &&
-              event.buyAmount.toString() == buyAmount
-            )
-          }
-        )
+      it('should emit CancelOrder', async () => {
+        await expect(transaction)
+          .to.emit(exchange, 'CancelOrder')
+          .withArgs(1, user1.address, ETHER_ADDRESS, sellAmount, token.address, buyAmount)
       })
     })
 
@@ -511,127 +473,103 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await exchange.createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount, { from: user1 })
+        await exchange.connect(user1).createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount)
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(exchange.cancelOrder(2, { from: user1 }), 'Order unknown'))
+        await expect(exchange.connect(user1).cancelOrder(2)).to.be.revertedWith('Order unknown'))
     })
 
     context('when already cancelled', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await exchange.createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount, { from: user1 })
-        await exchange.cancelOrder(1, { from: user1 })
+        await exchange.connect(user1).createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount)
+        await exchange.connect(user1).cancelOrder(1)
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(exchange.cancelOrder(1, { from: user1 }), 'Order not cancellable'))
+        await expect(exchange.connect(user1).cancelOrder(1)).to.be.revertedWith('Order not cancellable'))
     })
 
-    // context('when filled', () => {
-    //         before(async () => {
-    //           token = await initializeToken()
-    //           exchange = await initializeExchange()
-    //           await exchange.createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount, { from: user1 })
-    //           // await exchange.cancelOrder(1, { from: user1 })
-    //         })
+    context('when filled', () => {
+      before(async () => {
+        token = await initializeToken()
+        exchange = await initializeExchange()
+        await exchange.connect(user1).createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount)
+        await exchange.connect(user1).cancelOrder(1)
+      })
 
-    //         it('should revert', async () =>
-    //           await truffleAssert.reverts(await exchange.cancelOrder(1, { from: user1 }), 'Order not cancellable'))
-    // })
+      it('should revert', async () =>
+        await expect(exchange.connect(user1).cancelOrder(1)).to.be.revertedWith('Order not cancellable'))
+    })
 
     context('when not owner', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await exchange.createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount, { from: user2 })
+        await exchange.connect(user2).createOrder(token.address, buyAmount, ETHER_ADDRESS, sellAmount)
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(exchange.cancelOrder(1, { from: user1 }), 'Not owner of the order'))
+        await expect(exchange.connect(user1).cancelOrder(1)).to.be.revertedWith('Not owner of the order'))
     })
   })
 
   describe('#fillOrder()', () => {
-    const ethAmount = '10000000000'
-    const tokenAmount = '1000000000000000000'
+    const ethAmount = BigNumber.from('10000000000')
+    const tokenAmount = BigNumber.from('1000000000000000000')
 
     context('when selling Ether', () => {
       context('when success', () => {
-        let timestamp: BN
-        let transaction: Truffle.TransactionResponse<AllEvents>
+        let transaction: ContractTransaction
 
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user1, '1100000000000000000', { from: deployer })
-          await exchange.depositEther({ value: ethAmount, from: user2 })
-          await token.approve(exchange.address, '1100000000000000000', { from: user1 })
-          await exchange.depositToken(token.address, '1100000000000000000', { from: user1 })
-          await exchange.createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount, { from: user2 })
-          timestamp = web3.utils.toBN(await advanceBlockTime(1))
+          await token.transfer(user1.address, '1100000000000000000')
+          await exchange.connect(user2).depositEther({ value: ethAmount })
+          await token.connect(user1).approve(exchange.address, '1100000000000000000')
+          await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+          await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
 
-          transaction = await exchange.fillOrder(1, { from: user1 })
+          transaction = await exchange.connect(user1).fillOrder(1)
         })
 
         it('should fill the order', async () => {
           const order = await exchange.orders(1)
-          order[2].toString().should.equal('1')
+          expect(order[1]).to.equal(1)
         })
 
         it('should increase exchange buyer Ether', async () => {
-          const balance = await exchange.ethBalanceOf(user1)
-          balance.toString().should.equal(ethAmount)
+          const balance = await exchange.ethBalanceOf(user1.address)
+          expect(balance).to.equal(ethAmount)
         })
 
         it('should decrease exchange seller Ether', async () => {
-          const balance = await exchange.ethBalanceOf(user2)
-          balance.toString().should.equal('0')
+          const balance = await exchange.ethBalanceOf(user2.address)
+          expect(balance).to.equal(BigNumber.from(0))
         })
 
         it('should increase exchange seller token', async () => {
-          const balance = await exchange.tokenBalanceOf(token.address, user2)
-          balance.toString().should.equal(tokenAmount)
+          const balance = await exchange.tokenBalanceOf(token.address, user2.address)
+          expect(balance).to.equal(tokenAmount)
         })
 
         it('should decrease exchange buyer token', async () => {
-          const balance = await exchange.tokenBalanceOf(token.address, user1)
-          balance.toString().should.equal('0')
+          const balance = await exchange.tokenBalanceOf(token.address, user1.address)
+          expect(balance).to.equal(BigNumber.from(0))
         })
 
         it('should increase exchange fee account token', async () => {
-          const balance = await exchange.tokenBalanceOf(token.address, feeAccount)
-          balance.toString().should.equal('100000000000000000')
+          const balance = await exchange.tokenBalanceOf(token.address, feeAccount.address)
+          expect(balance).to.equal(BigNumber.from('100000000000000000'))
         })
 
-        it('should emit Trade', () => {
-          truffleAssert.eventEmitted(
-            transaction,
-            'Trade',
-            (event: {
-              timestamp: BN
-              orderId: BN
-              sellAccount: string
-              sellToken: string
-              sellAmount: BN
-              buyAccount: string
-              buyToken: string
-              buyAmount: BN
-            }) => {
-              return (
-                event.timestamp.sub(timestamp).lte(web3.utils.toBN(1)) &&
-                event.orderId.toString() == '1' &&
-                event.sellAccount == user2 &&
-                event.sellToken == ETHER_ADDRESS &&
-                event.sellAmount.toString() == ethAmount &&
-                event.buyAccount == user1 &&
-                event.buyToken == token.address &&
-                event.buyAmount.toString() == tokenAmount
-              )
-            }
-          )
+        it('should emit Trade', async () => {
+          await expect(transaction)
+            .to.emit(exchange, 'Trade')
+            .withArgs(1, user2.address, ETHER_ADDRESS, ethAmount, user1.address, token.address, tokenAmount)
         })
       })
 
@@ -639,107 +577,83 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user1, tokenAmount, { from: deployer })
-          await exchange.depositEther({ value: ethAmount, from: user2 })
-          await token.approve(exchange.address, tokenAmount, { from: user1 })
-          await exchange.depositToken(token.address, tokenAmount, { from: user1 })
-          await exchange.createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount, { from: user2 })
+          await token.transfer(user1.address, tokenAmount)
+          await exchange.connect(user2).depositEther({ value: ethAmount })
+          await token.connect(user1).approve(exchange.address, tokenAmount)
+          await exchange.connect(user1).depositToken(token.address, tokenAmount)
+          await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
         })
 
         it('should revert', async () =>
-          await truffleAssert.reverts(exchange.fillOrder(1, { from: user1 }), 'Insufficient funds for buyer'))
+          await expect(exchange.connect(user1).fillOrder(1)).to.be.revertedWith('Insufficient funds for buyer'))
       })
 
       context('when insufficient funds for seller', () => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user1, '1100000000000000000', { from: deployer })
-          await exchange.depositEther({ value: '1000000000', from: user2 })
-          await token.approve(exchange.address, '1100000000000000000', { from: user1 })
-          await exchange.depositToken(token.address, '1100000000000000000', { from: user1 })
-          await exchange.createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount, { from: user2 })
+          await token.transfer(user1.address, '1100000000000000000')
+          await exchange.connect(user2).depositEther({ value: '1000000000' })
+          await token.connect(user1).approve(exchange.address, '1100000000000000000')
+          await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+          await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
         })
 
         it('should revert', async () =>
-          await truffleAssert.reverts(exchange.fillOrder(1, { from: user1 }), 'Insufficient funds for seller'))
+          await expect(exchange.connect(user1).fillOrder(1)).to.be.revertedWith('Insufficient funds for seller'))
       })
     })
 
     context('when selling token', () => {
       context('when success', () => {
-        let timestamp: BN
-        let transaction: Truffle.TransactionResponse<AllEvents>
+        let transaction: ContractTransaction
 
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user2, tokenAmount, { from: deployer })
-          await token.approve(exchange.address, tokenAmount, { from: user2 })
-          await exchange.depositToken(token.address, tokenAmount, { from: user2 })
-          await exchange.depositEther({ value: '11000000000', from: user1 })
-          await exchange.createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount, { from: user2 })
-          timestamp = web3.utils.toBN(await advanceBlockTime(1))
+          await token.transfer(user2.address, tokenAmount)
+          await token.connect(user2).approve(exchange.address, tokenAmount)
+          await exchange.connect(user2).depositToken(token.address, tokenAmount)
+          await exchange.connect(user1).depositEther({ value: '11000000000' })
+          await exchange.connect(user2).createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount)
 
-          transaction = await exchange.fillOrder(1, { from: user1 })
+          transaction = await exchange.connect(user1).fillOrder(1)
         })
 
         it('should fill the order', async () => {
           const order = await exchange.orders(1)
-          order[2].toString().should.equal('1')
+          expect(order[1]).to.equal(1)
         })
 
         it('should increase exchange buyer token', async () => {
-          const balance = await exchange.tokenBalanceOf(token.address, user1)
-          balance.toString().should.equal(tokenAmount)
+          const balance = await exchange.tokenBalanceOf(token.address, user1.address)
+          expect(balance).to.equal(tokenAmount)
         })
 
         it('should decrease exchange seller token', async () => {
-          const balance = await exchange.tokenBalanceOf(token.address, user2)
-          balance.toString().should.equal('0')
+          const balance = await exchange.tokenBalanceOf(token.address, user2.address)
+          expect(balance).to.equal(BigNumber.from(0))
         })
 
         it('should increase exchange seller Ether', async () => {
-          const balance = await exchange.ethBalanceOf(user2)
-          balance.toString().should.equal(ethAmount)
+          const balance = await exchange.ethBalanceOf(user2.address)
+          expect(balance).to.equal(ethAmount)
         })
 
         it('should decrease exchange buyer Ether', async () => {
-          const balance = await exchange.ethBalanceOf(user1)
-          balance.toString().should.equal('0')
+          const balance = await exchange.ethBalanceOf(user1.address)
+          expect(balance).to.equal(BigNumber.from(0))
         })
 
         it('should increase exchange fee account Ether', async () => {
-          const balance = await exchange.ethBalanceOf(feeAccount)
-          balance.toString().should.equal('1000000000')
+          const balance = await exchange.ethBalanceOf(feeAccount.address)
+          expect(balance).to.equal(BigNumber.from('1000000000'))
         })
 
-        it('should emit Trade', () => {
-          truffleAssert.eventEmitted(
-            transaction,
-            'Trade',
-            (event: {
-              timestamp: BN
-              orderId: BN
-              sellAccount: string
-              sellToken: string
-              sellAmount: BN
-              buyAccount: string
-              buyToken: string
-              buyAmount: BN
-            }) => {
-              return (
-                event.timestamp.sub(timestamp).lte(web3.utils.toBN(1)) &&
-                event.orderId.toString() == '1' &&
-                event.sellAccount == user2 &&
-                event.sellToken == token.address &&
-                event.sellAmount.toString() == tokenAmount &&
-                event.buyAccount == user1 &&
-                event.buyToken == ETHER_ADDRESS &&
-                event.buyAmount.toString() == ethAmount
-              )
-            }
-          )
+        it('should emit Trade', async () => {
+          await expect(transaction)
+            .to.emit(exchange, 'Trade')
+            .withArgs(1, user2.address, token.address, tokenAmount, user1.address, ETHER_ADDRESS, ethAmount)
         })
       })
 
@@ -747,30 +661,30 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user2, tokenAmount, { from: deployer })
-          await token.approve(exchange.address, tokenAmount, { from: user2 })
-          await exchange.depositToken(token.address, tokenAmount, { from: user2 })
-          await exchange.depositEther({ value: ethAmount, from: user1 })
-          await exchange.createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount, { from: user2 })
+          await token.transfer(user2.address, tokenAmount)
+          await token.connect(user2).approve(exchange.address, tokenAmount)
+          await exchange.connect(user2).depositToken(token.address, tokenAmount)
+          await exchange.connect(user1).depositEther({ value: ethAmount })
+          await exchange.connect(user2).createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount)
         })
 
         it('should revert', async () =>
-          await truffleAssert.reverts(exchange.fillOrder(1, { from: user1 }), 'Insufficient funds for buyer'))
+          await expect(exchange.connect(user1).fillOrder(1)).to.be.revertedWith('Insufficient funds for buyer'))
       })
 
       context('when insufficient funds for seller', () => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user2, '100000000000000000', { from: deployer })
-          await token.approve(exchange.address, '100000000000000000', { from: user2 })
-          await exchange.depositToken(token.address, '100000000000000000', { from: user2 })
-          await exchange.depositEther({ value: '11000000000', from: user1 })
-          await exchange.createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount, { from: user2 })
+          await token.transfer(user2.address, '100000000000000000')
+          await token.connect(user2).approve(exchange.address, '100000000000000000')
+          await exchange.connect(user2).depositToken(token.address, '100000000000000000')
+          await exchange.connect(user1).depositEther({ value: '11000000000' })
+          await exchange.connect(user2).createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount)
         })
 
         it('should revert', async () =>
-          await truffleAssert.reverts(exchange.fillOrder(1, { from: user1 }), 'Insufficient funds for seller'))
+          await expect(exchange.connect(user1).fillOrder(1)).to.be.revertedWith('Insufficient funds for seller'))
       })
     })
 
@@ -778,47 +692,47 @@ contract('Exchange', ([deployer, feeAccount, user1, user2]: string[]) => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1, '1100000000000000000', { from: deployer })
-        await exchange.depositEther({ value: ethAmount, from: user2 })
-        await token.approve(exchange.address, '1100000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '1100000000000000000', { from: user1 })
-        await exchange.createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount, { from: user2 })
+        await token.transfer(user1.address, '1100000000000000000')
+        await exchange.connect(user2).depositEther({ value: ethAmount })
+        await token.connect(user1).approve(exchange.address, '1100000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+        await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(exchange.fillOrder(2, { from: user1 }), 'Order unknown'))
+        await expect(exchange.connect(user1).fillOrder(2)).to.be.revertedWith('Order unknown'))
     })
 
     context('when cancelled order', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1, '1100000000000000000', { from: deployer })
-        await exchange.depositEther({ value: ethAmount, from: user2 })
-        await token.approve(exchange.address, '1100000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '1100000000000000000', { from: user1 })
-        await exchange.createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount, { from: user2 })
-        await exchange.cancelOrder(1, { from: user2 })
+        await token.transfer(user1.address, '1100000000000000000')
+        await exchange.connect(user2).depositEther({ value: ethAmount })
+        await token.connect(user1).approve(exchange.address, '1100000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+        await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
+        await exchange.connect(user2).cancelOrder(1)
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(exchange.fillOrder(1, { from: user1 }), 'Order not fillable'))
+        await expect(exchange.connect(user1).fillOrder(1)).to.be.revertedWith('Order not fillable'))
     })
 
     context('when filled order', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1, '1100000000000000000', { from: deployer })
-        await exchange.depositEther({ value: ethAmount, from: user2 })
-        await token.approve(exchange.address, '1100000000000000000', { from: user1 })
-        await exchange.depositToken(token.address, '1100000000000000000', { from: user1 })
-        await exchange.createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount, { from: user2 })
-        await exchange.fillOrder(1, { from: user1 })
+        await token.transfer(user1.address, '1100000000000000000')
+        await exchange.connect(user2).depositEther({ value: ethAmount })
+        await token.connect(user1).approve(exchange.address, '1100000000000000000')
+        await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+        await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
+        await exchange.connect(user1).fillOrder(1)
       })
 
       it('should revert', async () =>
-        await truffleAssert.reverts(exchange.fillOrder(1, { from: user1 }), 'Order not fillable'))
+        await expect(exchange.connect(user1).fillOrder(1)).to.be.revertedWith('Order not fillable'))
     })
   })
 })
