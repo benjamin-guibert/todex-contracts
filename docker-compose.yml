@@ -1,4 +1,4 @@
-version: "3.9"
+version: '3.9'
 
 services:
   blockchain:
@@ -6,7 +6,7 @@ services:
     image: trufflesuite/ganache-cli:v6.12.2
     restart: unless-stopped
     ports:
-      - "8545:8545"
+      - '8545:8545'
     networks:
       - todex
 
