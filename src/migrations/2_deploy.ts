@@ -2,7 +2,7 @@ const Token = artifacts.require('Token')
 const Exchange = artifacts.require('Exchange')
 
 module.exports = (async (deployer) => {
-  const initialSupply = web3.utils.fromWei('10000000')
+  const initialSupply = '10000000000000000000000000'
   const accounts = await web3.eth.getAccounts()
   const feeAccount = accounts[0]
   const feePercent = 10
