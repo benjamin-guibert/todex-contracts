@@ -9,6 +9,8 @@ module.exports = {
       options: {
         singleQuote: false,
         semi: true,
+        useTabs: false,
+        tabWidth: 4,
       },
     },
   ],
