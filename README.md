@@ -25,9 +25,10 @@ This project require the following dependencies:
 
 ### Setup
 
-Install the dependencies and compile:
+Install the dependencies, the `.env` file and compile:
 
 ```bash
+cp .env.sample .env
 yarn install
 yarn compile
 ```
@@ -69,6 +70,8 @@ This project is not currently open to contributions.
 , [Eslint](https://eslint.org)
 , [Prettier](https://prettier.io)
 , [Mocha](https://mochajs.org)
+, [dotenv](https://github.com/motdotla/dotenv)
+, [update-dotenv](https://github.com/bkeepers/update-dotenv)
 , [Hardhat](https://hardhat.org)
 , [Ethers](https://docs.ethers.io/)
 

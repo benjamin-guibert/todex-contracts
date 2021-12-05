@@ -1,9 +1,8 @@
 import { BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ethers } from 'hardhat'
+import { artifacts, ethers } from 'hardhat'
 import { Exchange, Token } from '../typechain-types'
-import { deploy } from './deploy'
-import { shortenAddress, wait } from './helpers'
+import { initializeScript, shortenAddress, wait } from './helpers'
 
 const ETHER_ADDRESS = ethers.constants.AddressZero
 const { parseEther, formatEther } = ethers.utils
@@ -12,12 +11,17 @@ let accounts: SignerWithAddress[]
 let token: Token
 let exchange: Exchange
 
-const seedDevelopment = async () => {
+const main = async () => {
+  initializeScript()
   accounts = (await ethers.getSigners()).slice(0, 4)
-  const [, user1, user2, user3] = accounts
-  const contracts = await deploy()
-  token = contracts.token
-  exchange = contracts.exchange
+  const [deployer, user1, user2, user3] = accounts
+  const tokenAddress = process.env.TOKEN_CONTRACT_ADDRESS
+  const exchangeAddress = process.env.EXCHANGE_CONTRACT_ADDRESS
+  if (!tokenAddress || !exchangeAddress) {
+    throw new Error('A contract address is missing, deploy first.')
+  }
+  token = new ethers.Contract(tokenAddress, (await artifacts.readArtifact('Token')).abi, deployer) as Token
+  exchange = new ethers.Contract(exchangeAddress, (await artifacts.readArtifact('Exchange')).abi, deployer) as Exchange
 
   await token.transfer(user2.address, parseEther('100'))
   await token.transfer(user3.address, parseEther('100'))
@@ -99,7 +103,7 @@ const logState = async () => {
   console.log('---------------------------------------------')
 }
 
-seedDevelopment().catch((error) => {
+main().catch((error) => {
   console.error(error)
   process.exitCode = 1
 })
