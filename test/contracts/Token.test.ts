@@ -1,10 +1,12 @@
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
+import { BigNumber } from 'ethers'
 import { Token, Token__factory } from '../../typechain-types'
-import { BigNumber } from '@ethersproject/bignumber'
+
+const { parseEther } = ethers.utils
 
 describe('Token', () => {
-  const initialSupply = BigNumber.from('10000000000000000000')
+  const initialSupply = parseEther('1000000')
 
   let initializeToken: () => Promise<Token>
   let token: Token

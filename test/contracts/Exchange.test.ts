@@ -1,13 +1,14 @@
 import { expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
+import { BigNumber, ContractTransaction } from 'ethers'
 import { Exchange, Exchange__factory, Token, Token__factory } from '../../typechain-types'
-import { BigNumber } from '@ethersproject/bignumber'
-import { BURN_ADDRESS as ETHER_ADDRESS } from './helpers'
-import { ContractTransaction } from '@ethersproject/contracts'
+
+const { AddressZero: ETHER_ADDRESS, Zero } = ethers.constants
+const { parseEther } = ethers.utils
 
 describe('Exchange', () => {
-  const initialSupply = BigNumber.from('1000000000000000000000')
+  const initialSupply = parseEther('1000000')
   const feePercent = 10
 
   let feeAccount: SignerWithAddress
@@ -53,7 +54,7 @@ describe('Exchange', () => {
   })
 
   describe('#ethBalanceOf', () => {
-    const value = BigNumber.from('1000000000000000000')
+    const value = parseEther('1')
 
     let result: BigNumber
 
@@ -73,12 +74,12 @@ describe('Exchange', () => {
         result = await exchange.ethBalanceOf(user1.address)
       })
 
-      it('should return balance', () => expect(result).to.equal(BigNumber.from(0)))
+      it('should return balance', () => expect(result).to.equal(Zero))
     })
   })
 
   describe('#tokenBalanceOf', () => {
-    const value = BigNumber.from('1000000000000000000')
+    const value = parseEther('1000')
 
     let result: BigNumber
 
@@ -106,7 +107,7 @@ describe('Exchange', () => {
         result = await exchange.tokenBalanceOf(token.address, user1.address)
       })
 
-      it('should return balance', () => expect(result).to.equal(BigNumber.from(0)))
+      it('should return balance', () => expect(result).to.equal(Zero))
     })
 
     context('when unknown', () => {
@@ -125,72 +126,70 @@ describe('Exchange', () => {
         result = await exchange.tokenBalanceOf(token.address, user1.address)
       })
 
-      it('should return balance', () => expect(result).to.equal(BigNumber.from(0)))
+      it('should return balance', () => expect(result).to.equal(Zero))
+    })
+  })
+
+  describe('#orders()', () => {
+    const sellAmount = parseEther('1')
+    const buyAmount = parseEther('1000')
+
+    let result: {
+      0: BigNumber
+      1: number
+      2: string
+      3: string
+      4: BigNumber
+      5: string
+      6: BigNumber
+    }
+
+    before(async () => {
+      token = await initializeToken()
+      exchange = await initializeExchange()
+      await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, sellAmount)
+      await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount)
+      await exchange.connect(user1).createOrder(ETHER_ADDRESS, buyAmount, token.address, buyAmount)
+
+      result = await exchange.orders(2)
     })
 
-    describe('#orders()', () => {
-      const sellAmount = BigNumber.from('10000000000')
-      const buyAmount = BigNumber.from('1000000000000000000')
-
-      let result: {
-        0: BigNumber
-        1: number
-        2: string
-        3: string
-        4: BigNumber
-        5: string
-        6: BigNumber
-      }
-
-      before(async () => {
-        token = await initializeToken()
-        exchange = await initializeExchange()
-        await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, sellAmount)
-        await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount)
-        await exchange.connect(user1).createOrder(ETHER_ADDRESS, buyAmount, token.address, buyAmount)
-
-        result = await exchange.orders(2)
-      })
-
-      it('should return orders', () => {
-        expect(result[0]).to.equal(BigNumber.from(2))
-        expect(result[1]).to.equal(0)
-        expect(result[2]).to.equal(user1.address)
-        expect(result[3]).to.equal(ETHER_ADDRESS)
-        expect(result[4]).to.equal(BigNumber.from(sellAmount))
-        expect(result[5]).to.equal(token.address)
-        expect(result[6]).to.equal(BigNumber.from(buyAmount))
-      })
+    it('should return orders', () => {
+      expect(result[0]).to.equal(BigNumber.from(2))
+      expect(result[1]).to.equal(0)
+      expect(result[2]).to.equal(user1.address)
+      expect(result[3]).to.equal(ETHER_ADDRESS)
+      expect(result[4]).to.equal(sellAmount)
+      expect(result[5]).to.equal(token.address)
+      expect(result[6]).to.equal(buyAmount)
     })
   })
 
   describe('#depositEther()', () => {
-    const value = BigNumber.from('1000000000000000000')
+    const value = parseEther('1')
 
     let transaction: ContractTransaction
 
     before(async () => {
       exchange = await initializeExchange()
       await token.transfer(user1.address, value)
-      await exchange.connect(user1).depositEther({ value: '2000000000000000000' })
+      await exchange.connect(user1).depositEther({ value: parseEther('2') })
 
       transaction = await exchange.connect(user1).depositEther({ value })
     })
 
     it('should increase contract Ether balance', async () => {
       const balance = await ethers.provider.getBalance(exchange.address)
-      expect(balance).to.eq(BigNumber.from('3000000000000000000'))
+      expect(balance).to.eq(parseEther('3'))
     })
 
     it('should increase exchange user1 Ether balance', async () => {
       const balance = await exchange.ethBalanceOf(user1.address)
-      expect(balance).to.equal(BigNumber.from('3000000000000000000'))
+      expect(balance).to.equal(parseEther('3'))
     })
 
     it('should emit DepositEther', async () => {
-      await expect(transaction)
-        .to.emit(exchange, 'DepositEther')
-        .withArgs(user1.address, BigNumber.from(value), BigNumber.from('3000000000000000000'))
+      await expect(transaction).to.emit(exchange, 'DepositEther').withArgs(user1.address, value, parseEther('3'))
     })
   })
 
@@ -203,40 +202,35 @@ describe('Exchange', () => {
         token = await initializeToken()
         otherToken = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1.address, '10000000000000000000')
-        await otherToken.transfer(user1.address, '10000000000000000000')
-        await token.transfer(user2.address, '10000000000000000000')
-        await otherToken.transfer(user2.address, '10000000000000000000')
-        await token.connect(user2).approve(exchange.address, '3000000000000000000')
-        await exchange.connect(user2).depositToken(token.address, '3000000000000000000')
-        await otherToken.connect(user2).approve(exchange.address, '9000000000000000000')
-        await exchange.connect(user2).depositToken(otherToken.address, '9000000000000000000')
-        await token.connect(user1).approve(exchange.address, '5000000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '5000000000000000000')
-        await token.connect(user1).approve(exchange.address, '1000000000000000000')
+        await token.transfer(user1.address, parseEther('10000'))
+        await otherToken.transfer(user1.address, parseEther('10000'))
+        await token.transfer(user2.address, parseEther('10000'))
+        await otherToken.transfer(user2.address, parseEther('10000'))
+        await token.connect(user2).approve(exchange.address, parseEther('3000'))
+        await exchange.connect(user2).depositToken(token.address, parseEther('3000'))
+        await otherToken.connect(user2).approve(exchange.address, parseEther('9000'))
+        await exchange.connect(user2).depositToken(otherToken.address, parseEther('9000'))
+        await token.connect(user1).approve(exchange.address, parseEther('5000'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('5000'))
+        await token.connect(user1).approve(exchange.address, parseEther('1000'))
 
-        transaction = await exchange.connect(user1).depositToken(token.address, '1000000000000000000')
+        transaction = await exchange.connect(user1).depositToken(token.address, parseEther('1000'))
       })
 
       it('should increase exchange user1 token balance', async () => {
         const balance = await exchange.tokenBalanceOf(token.address, user1.address)
-        expect(balance).to.equal(BigNumber.from('6000000000000000000'))
+        expect(balance).to.equal(parseEther('6000'))
       })
 
       it('should decrease user1 token balance', async () => {
         const balance = await token.balanceOf(user1.address)
-        expect(balance).to.equal(BigNumber.from('4000000000000000000'))
+        expect(balance).to.equal(parseEther('4000'))
       })
 
       it('should emit DepositToken', async () => {
         await expect(transaction)
           .to.emit(exchange, 'DepositToken')
-          .withArgs(
-            user1.address,
-            token.address,
-            BigNumber.from('1000000000000000000'),
-            BigNumber.from('6000000000000000000')
-          )
+          .withArgs(user1.address, token.address, parseEther('1000'), parseEther('6000'))
       })
     })
 
@@ -244,14 +238,13 @@ describe('Exchange', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        token.transfer(user1.address, '4000000000000000000')
-        await token.connect(user1).approve(exchange.address, '3000000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '3000000000000000000')
-        await token.connect(user1).approve(exchange.address, '2000000000000000000')
+        token.transfer(user1.address, parseEther('4000'))
+        await token.connect(user1).approve(exchange.address, parseEther('5000'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('3000'))
       })
 
       it('should revert', async () =>
-        await expect(exchange.connect(user1).depositToken(token.address, '2000000000000000000')).to.be.revertedWith(
+        await expect(exchange.connect(user1).depositToken(token.address, parseEther('2000'))).to.be.revertedWith(
           'ERC20: transfer amount exceeds balance'
         ))
     })
@@ -259,12 +252,12 @@ describe('Exchange', () => {
     context('when transfer not allowed', () => {
       before(async () => {
         token = await initializeToken()
-        token.transfer(user1.address, '4000000000000000000')
+        token.transfer(user1.address, parseEther('1000'))
         exchange = await initializeExchange()
       })
 
       it('should revert', async () =>
-        await expect(exchange.connect(user1).depositToken(token.address, '2000000000000000000')).to.be.revertedWith(
+        await expect(exchange.connect(user1).depositToken(token.address, parseEther('1000'))).to.be.revertedWith(
           'ERC20: transfer amount exceeds allowance'
         ))
     })
@@ -278,16 +271,16 @@ describe('Exchange', () => {
 
       before(async () => {
         exchange = await initializeExchange()
-        await exchange.connect(user2).depositEther({ value: '9000000000000000000' })
-        await exchange.connect(user1).depositEther({ value: '3000000000000000000' })
+        await exchange.connect(user2).depositEther({ value: parseEther('9') })
+        await exchange.connect(user1).depositEther({ value: parseEther('3') })
         initUserBalance = await ethers.provider.getBalance(user1.address)
 
-        transaction = await exchange.connect(user1).withdrawEther('1000000000000000000')
+        transaction = await exchange.connect(user1).withdrawEther(parseEther('1'))
       })
 
       it('should decrease contract Ether balance', async () => {
         const balance = await ethers.provider.getBalance(exchange.address)
-        expect(balance).to.equal(BigNumber.from('11000000000000000000'))
+        expect(balance).to.equal(parseEther('11'))
       })
 
       it('should increase user Ether balance', async () => {
@@ -297,26 +290,24 @@ describe('Exchange', () => {
 
       it('should decrease exchange user Ether balance', async () => {
         const balance = await exchange.ethBalanceOf(user1.address)
-        expect(balance).to.equal(BigNumber.from('2000000000000000000'))
+        expect(balance).to.equal(BigNumber.from(parseEther('2')))
       })
 
       it('should emit WithdrawEther', async () => {
         await expect(transaction)
           .to.emit(exchange, 'WithdrawEther')
-          .withArgs(user1.address, BigNumber.from('1000000000000000000'), BigNumber.from('2000000000000000000'))
+          .withArgs(user1.address, parseEther('1'), parseEther('2'))
       })
     })
 
     context('when insufficient funds', () => {
       before(async () => {
         exchange = await initializeExchange()
-        await exchange.connect(user1).depositEther({ value: '3000000000000000000' })
+        await exchange.connect(user1).depositEther({ value: parseEther('3') })
       })
 
       it('should revert', async () =>
-        await expect(exchange.connect(user1).withdrawEther('5000000000000000000')).to.be.revertedWith(
-          'Insufficient funds'
-        ))
+        await expect(exchange.connect(user1).withdrawEther(parseEther('5'))).to.be.revertedWith('Insufficient funds'))
     })
   })
 
@@ -329,52 +320,47 @@ describe('Exchange', () => {
       before(async () => {
         token = await initializeToken()
         otherToken = await initializeToken()
-        await token.transfer(user1.address, '3000000000000000000')
-        await otherToken.transfer(user1.address, '4000000000000000000')
+        await token.transfer(user1.address, parseEther('3000'))
+        await otherToken.transfer(user1.address, parseEther('4000'))
         exchange = await initializeExchange()
-        await token.approve(exchange.address, '9000000000000000000')
-        await exchange.depositToken(token.address, '9000000000000000000')
-        await token.connect(user1).approve(exchange.address, '3000000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '3000000000000000000')
-        await otherToken.connect(user1).approve(exchange.address, '4000000000000000000')
-        await exchange.connect(user1).depositToken(otherToken.address, '4000000000000000000')
+        await token.approve(exchange.address, parseEther('9000'))
+        await exchange.depositToken(token.address, parseEther('9000'))
+        await token.connect(user1).approve(exchange.address, parseEther('3000'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('3000'))
+        await otherToken.connect(user1).approve(exchange.address, parseEther('4000'))
+        await exchange.connect(user1).depositToken(otherToken.address, parseEther('4000'))
 
-        transaction = await exchange.connect(user1).withdrawToken(token.address, '1000000000000000000')
+        transaction = await exchange.connect(user1).withdrawToken(token.address, parseEther('1000'))
       })
 
       it('should increase user token balance', async () => {
         const balance = await token.balanceOf(user1.address)
-        expect(balance).to.equal(BigNumber.from('1000000000000000000'))
+        expect(balance).to.equal(parseEther('1000'))
       })
 
       it('should decrease exchange user token balance', async () => {
         const balance = await exchange.tokenBalanceOf(token.address, user1.address)
-        expect(balance).to.equal('2000000000000000000')
+        expect(balance).to.equal(parseEther('2000'))
       })
 
       it('should emit WithdrawToken', async () => {
         await expect(transaction)
           .to.emit(exchange, 'WithdrawToken')
-          .withArgs(
-            user1.address,
-            token.address,
-            BigNumber.from('1000000000000000000'),
-            BigNumber.from('2000000000000000000')
-          )
+          .withArgs(user1.address, token.address, parseEther('1000'), parseEther('2000'))
       })
     })
 
     context('when insufficient funds', () => {
       before(async () => {
         token = await initializeToken()
-        await token.transfer(user1.address, '1000000000000000000')
+        await token.transfer(user1.address, parseEther('1000'))
         exchange = await initializeExchange()
-        await token.connect(user1).approve(exchange.address, '1000000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '1000000000000000000')
+        await token.connect(user1).approve(exchange.address, parseEther('1000'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('1000'))
       })
 
       it('should revert', async () =>
-        await expect(exchange.connect(user1).withdrawToken(token.address, '2000000000000000000')).to.be.revertedWith(
+        await expect(exchange.connect(user1).withdrawToken(token.address, parseEther('2000'))).to.be.revertedWith(
           'Insufficient funds'
         ))
     })
@@ -383,23 +369,23 @@ describe('Exchange', () => {
       before(async () => {
         token = await initializeToken()
         otherToken = await initializeToken()
-        await token.transfer(user1.address, '3000000000000000000')
-        await otherToken.transfer(user1.address, '3000000000000000000')
+        await token.transfer(user1.address, parseEther('3000'))
+        await otherToken.transfer(user1.address, parseEther('3000'))
         exchange = await initializeExchange()
-        await token.connect(user1).approve(exchange.address, '1000000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '1000000000000000000')
+        await token.connect(user1).approve(exchange.address, parseEther('1000'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('1000'))
       })
 
       it('should revert', async () =>
-        await expect(exchange.withdrawToken(otherToken.address, '1000000000000000000')).to.be.revertedWith(
+        await expect(exchange.withdrawToken(otherToken.address, parseEther('1000'))).to.be.revertedWith(
           'Insufficient funds'
         ))
     })
   })
 
   describe('#createOrder()', () => {
-    const sellAmount = BigNumber.from('10000000000')
-    const buyAmount = BigNumber.from('1000000000000000000')
+    const sellAmount = parseEther('1')
+    const buyAmount = parseEther('1000')
 
     context('when success', () => {
       let transaction: ContractTransaction
@@ -443,8 +429,8 @@ describe('Exchange', () => {
   })
 
   describe('#cancelOrder()', () => {
-    const sellAmount = BigNumber.from('10000000000')
-    const buyAmount = BigNumber.from('1000000000000000000')
+    const sellAmount = parseEther('1')
+    const buyAmount = parseEther('1000')
 
     context('when success', () => {
       let transaction: ContractTransaction
@@ -517,8 +503,8 @@ describe('Exchange', () => {
   })
 
   describe('#fillOrder()', () => {
-    const ethAmount = BigNumber.from('10000000000')
-    const tokenAmount = BigNumber.from('1000000000000000000')
+    const ethAmount = parseEther('1')
+    const tokenAmount = parseEther('1000')
 
     context('when selling Ether', () => {
       context('when success', () => {
@@ -527,10 +513,10 @@ describe('Exchange', () => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user1.address, '1100000000000000000')
+          await token.transfer(user1.address, parseEther('1100'))
           await exchange.connect(user2).depositEther({ value: ethAmount })
-          await token.connect(user1).approve(exchange.address, '1100000000000000000')
-          await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+          await token.connect(user1).approve(exchange.address, parseEther('1100'))
+          await exchange.connect(user1).depositToken(token.address, parseEther('1100'))
           await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
 
           transaction = await exchange.connect(user1).fillOrder(1)
@@ -548,7 +534,7 @@ describe('Exchange', () => {
 
         it('should decrease exchange seller Ether', async () => {
           const balance = await exchange.ethBalanceOf(user2.address)
-          expect(balance).to.equal(BigNumber.from(0))
+          expect(balance).to.equal(Zero)
         })
 
         it('should increase exchange seller token', async () => {
@@ -558,12 +544,12 @@ describe('Exchange', () => {
 
         it('should decrease exchange buyer token', async () => {
           const balance = await exchange.tokenBalanceOf(token.address, user1.address)
-          expect(balance).to.equal(BigNumber.from(0))
+          expect(balance).to.equal(Zero)
         })
 
         it('should increase exchange fee account token', async () => {
           const balance = await exchange.tokenBalanceOf(token.address, feeAccount.address)
-          expect(balance).to.equal(BigNumber.from('100000000000000000'))
+          expect(balance).to.equal(parseEther('100'))
         })
 
         it('should emit Trade', async () => {
@@ -592,10 +578,10 @@ describe('Exchange', () => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user1.address, '1100000000000000000')
-          await exchange.connect(user2).depositEther({ value: '1000000000' })
-          await token.connect(user1).approve(exchange.address, '1100000000000000000')
-          await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+          await token.transfer(user1.address, parseEther('1100'))
+          await exchange.connect(user2).depositEther({ value: parseEther('0.5') })
+          await token.connect(user1).approve(exchange.address, parseEther('1100'))
+          await exchange.connect(user1).depositToken(token.address, parseEther('1100'))
           await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
         })
 
@@ -614,7 +600,7 @@ describe('Exchange', () => {
           await token.transfer(user2.address, tokenAmount)
           await token.connect(user2).approve(exchange.address, tokenAmount)
           await exchange.connect(user2).depositToken(token.address, tokenAmount)
-          await exchange.connect(user1).depositEther({ value: '11000000000' })
+          await exchange.connect(user1).depositEther({ value: parseEther('1.1') })
           await exchange.connect(user2).createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount)
 
           transaction = await exchange.connect(user1).fillOrder(1)
@@ -632,7 +618,7 @@ describe('Exchange', () => {
 
         it('should decrease exchange seller token', async () => {
           const balance = await exchange.tokenBalanceOf(token.address, user2.address)
-          expect(balance).to.equal(BigNumber.from(0))
+          expect(balance).to.equal(Zero)
         })
 
         it('should increase exchange seller Ether', async () => {
@@ -642,12 +628,12 @@ describe('Exchange', () => {
 
         it('should decrease exchange buyer Ether', async () => {
           const balance = await exchange.ethBalanceOf(user1.address)
-          expect(balance).to.equal(BigNumber.from(0))
+          expect(balance).to.equal(Zero)
         })
 
         it('should increase exchange fee account Ether', async () => {
           const balance = await exchange.ethBalanceOf(feeAccount.address)
-          expect(balance).to.equal(BigNumber.from('1000000000'))
+          expect(balance).to.equal(parseEther('0.1'))
         })
 
         it('should emit Trade', async () => {
@@ -676,10 +662,10 @@ describe('Exchange', () => {
         before(async () => {
           token = await initializeToken()
           exchange = await initializeExchange()
-          await token.transfer(user2.address, '100000000000000000')
-          await token.connect(user2).approve(exchange.address, '100000000000000000')
-          await exchange.connect(user2).depositToken(token.address, '100000000000000000')
-          await exchange.connect(user1).depositEther({ value: '11000000000' })
+          await token.transfer(user2.address, tokenAmount)
+          await token.connect(user2).approve(exchange.address, parseEther('900'))
+          await exchange.connect(user2).depositToken(token.address, parseEther('900'))
+          await exchange.connect(user1).depositEther({ value: parseEther('1.1') })
           await exchange.connect(user2).createOrder(token.address, tokenAmount, ETHER_ADDRESS, ethAmount)
         })
 
@@ -692,10 +678,10 @@ describe('Exchange', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1.address, '1100000000000000000')
+        await token.transfer(user1.address, parseEther('1100'))
         await exchange.connect(user2).depositEther({ value: ethAmount })
-        await token.connect(user1).approve(exchange.address, '1100000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+        await token.connect(user1).approve(exchange.address, parseEther('1100'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('1100'))
         await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
       })
 
@@ -707,10 +693,10 @@ describe('Exchange', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1.address, '1100000000000000000')
+        await token.transfer(user1.address, parseEther('1100'))
         await exchange.connect(user2).depositEther({ value: ethAmount })
-        await token.connect(user1).approve(exchange.address, '1100000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+        await token.connect(user1).approve(exchange.address, parseEther('1100'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('1100'))
         await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
         await exchange.connect(user2).cancelOrder(1)
       })
@@ -723,10 +709,10 @@ describe('Exchange', () => {
       before(async () => {
         token = await initializeToken()
         exchange = await initializeExchange()
-        await token.transfer(user1.address, '1100000000000000000')
+        await token.transfer(user1.address, parseEther('1100'))
         await exchange.connect(user2).depositEther({ value: ethAmount })
-        await token.connect(user1).approve(exchange.address, '1100000000000000000')
-        await exchange.connect(user1).depositToken(token.address, '1100000000000000000')
+        await token.connect(user1).approve(exchange.address, parseEther('1100'))
+        await exchange.connect(user1).depositToken(token.address, parseEther('1100'))
         await exchange.connect(user2).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
         await exchange.connect(user1).fillOrder(1)
       })

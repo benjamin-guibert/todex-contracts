@@ -22,7 +22,8 @@
     "console": "hardhat console",
     "server": "hardhat node",
     "test": "hardhat test",
-    "deploy:local": "hardhat --network localhost run scripts/deploy.ts"
+    "deploy:local": "hardhat --network localhost run scripts/deploy.ts",
+    "seed:local": "hardhat --network localhost run scripts/seed-development.ts"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",

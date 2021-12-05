@@ -39,7 +39,7 @@ JSON contracts (to be used by front-end projects) are deployed into the
 
 #### Deployment
 
-Run a local server:
+Run a local server on a dedicated terminal:
 
 ```bash
 yarn server
@@ -49,6 +49,12 @@ Execute the deployment script:
 
 ```bash
 yarn deploy:local
+```
+
+A development environment can also be seeded for demo purposes:
+
+```bash
+yarn seed:local
 ```
 
 ### Contributing
