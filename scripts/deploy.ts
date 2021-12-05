@@ -1,5 +1,5 @@
 import { deployContract, initializeScript } from './helpers'
-import { run, ethers } from 'hardhat'
+import { ethers } from 'hardhat'
 
 const { parseEther } = ethers.utils
 const initialSupply = parseEther('1000000')
