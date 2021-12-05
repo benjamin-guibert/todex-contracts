@@ -9,7 +9,8 @@
 
 ## Smart Contracts
 
-- [`Token.sol`](src/contracts/Token.sol): `ToDEX` token used by the exchange.
+- [`Token.sol`](contracts/Token.sol): `ToDEX` token used by the exchange.
+- [`Exchange.sol`](contracts/Exchange.sol): Exchange.
 
 ## Development
 
@@ -21,8 +22,6 @@ This project require the following dependencies:
 
 - [Node.js](https://nodejs.org)
 - [Yarn](https://yarnpkg.com)
-- [Docker](https://www.docker.com) or [Ganache](https://trufflesuite.com/ganache)
-- [Truffle](https://trufflesuite.com/truffle)
 
 ### Setup
 
@@ -34,24 +33,28 @@ yarn compile
 ```
 
 JSON contracts (to be used by front-end projects) are deployed into the
-`build/contracts` directory
+`artifacts/contracts` directory.
 
 ### Usage
 
-#### Migration
+#### Deployment
 
-Run Ganache or start the Docker container (see [docker-compose](docker-compose.yml) configuration):
+Run a local server on a dedicated terminal:
 
 ```bash
-yarn blockchain
-// or detached:
-yarn bc:start
+yarn server
 ```
 
-Execute the migration:
+Execute the deployment script:
 
 ```bash
-yarn migrate
+yarn deploy:local
+```
+
+A development environment can also be seeded for demo purposes:
+
+```bash
+yarn seed:local
 ```
 
 ### Contributing
@@ -63,11 +66,9 @@ This project is not currently open to contributions.
 [Node.js](https://nodejs.org)
 , [Yarn](https://yarnpkg.com)
 , [TypeScript](https://www.typescriptlang.org)
-, [Docker](https://www.docker.com)
 , [Eslint](https://eslint.org)
 , [Prettier](https://prettier.io)
-, [Truffle](https://trufflesuite.com/truffle)
-, [Ganache](https://trufflesuite.com/ganache)
+, [Hardhat](https://hardhat.org)
 
 ## Release History
 

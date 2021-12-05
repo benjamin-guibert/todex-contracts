@@ -1,5 +1,6 @@
 /node_modules
 /tmp
-/types
-/migrations
-/build
+/artifacts
+/cache
+/coverage
+/typechain*

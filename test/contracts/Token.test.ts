@@ -1,22 +1,33 @@
-import { TokenInstance } from '../../types/truffle-contracts'
+import { expect } from 'chai'
+import { ethers } from 'hardhat'
+import { BigNumber } from 'ethers'
+import { Token, Token__factory } from '../../typechain-types'
 
-const Token = artifacts.require('Token')
+const { parseEther } = ethers.utils
 
-contract('Token', ([deployer]: string[]) => {
-  const initialSupply = '10000000000000000000'
-  const initializeToken = () => Token.new(initialSupply, { from: deployer })
+describe('Token', () => {
+  const initialSupply = parseEther('1000000')
 
-  let token: TokenInstance
+  let initializeToken: () => Promise<Token>
+  let token: Token
+
+  before(async () => {
+    initializeToken = async () => {
+      const factory = (await ethers.getContractFactory('Token')) as Token__factory
+      return (await factory.deploy(initialSupply)).deployed()
+    }
+  })
 
   describe('#name()', () => {
     let result: string
 
     before(async () => {
       token = await initializeToken()
+
       result = await token.name()
     })
 
-    it('should return name', () => result.should.equal('ToDEX'))
+    it('should return name', () => expect(result).to.equal('ToDEX'))
   })
 
   describe('#symbol()', () => {
@@ -24,31 +35,34 @@ contract('Token', ([deployer]: string[]) => {
 
     before(async () => {
       token = await initializeToken()
+
       result = await token.symbol()
     })
 
-    it('should return symbol', () => result.should.equal('TDX'))
+    it('should return symbol', () => expect(result).to.equal('TDX'))
   })
 
   describe('#decimals()', () => {
-    let result: BN
+    let result: number
 
     before(async () => {
       token = await initializeToken()
+
       result = await token.decimals()
     })
 
-    it('should return decimals', () => result.toString().should.equal('18'))
+    it('should return decimals', () => expect(result).to.equal(18))
   })
 
   describe('#totalSupply()', () => {
-    let result: BN
+    let result: BigNumber
 
     before(async () => {
       token = await initializeToken()
+
       result = await token.totalSupply()
     })
 
-    it('should return total supply', () => result.toString().should.equal(initialSupply))
+    it('should return total supply', () => expect(result).to.equal(initialSupply))
   })
 })
