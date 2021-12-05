@@ -68,7 +68,9 @@ This project is not currently open to contributions.
 , [TypeScript](https://www.typescriptlang.org)
 , [Eslint](https://eslint.org)
 , [Prettier](https://prettier.io)
+, [Mocha](https://mochajs.org)
 , [Hardhat](https://hardhat.org)
+, [Ethers](https://docs.ethers.io/)
 
 ## Release History
 
