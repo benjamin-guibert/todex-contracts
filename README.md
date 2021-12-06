@@ -34,7 +34,7 @@ yarn compile
 ```
 
 JSON contracts (to be used by front-end projects) are deployed into the
-`artifacts/contracts` directory.
+`artifacts/contracts` directory and types into `typechain-types`.
 
 ### Usage
 
