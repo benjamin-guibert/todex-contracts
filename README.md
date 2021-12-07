@@ -73,6 +73,7 @@ This project is not currently open to contributions.
 , [dotenv](https://github.com/motdotla/dotenv)
 , [update-dotenv](https://github.com/bkeepers/update-dotenv)
 , [Hardhat](https://hardhat.org)
+, [Waffle](https://getwaffle.io)
 , [Ethers](https://docs.ethers.io/)
 
 ## Release History
