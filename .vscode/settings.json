@@ -8,6 +8,7 @@
     "source.fixAll": true
   },
   "editor.formatOnSave": true,
+  "mochaExplorer.files": "test/**/*.{j,t}s",
   "eslint.format.enable": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "eslint.packageManager": "yarn",

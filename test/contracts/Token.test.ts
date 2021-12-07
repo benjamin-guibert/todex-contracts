@@ -1,68 +1,52 @@
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
-import { BigNumber } from 'ethers'
-import { Token, Token__factory } from '../../typechain-types'
+import { Token__factory } from '../../typechain-types'
 
 const { parseEther } = ethers.utils
+const initialSupply = parseEther('1000000')
+const initializeToken = async () => {
+  const factory = (await ethers.getContractFactory('Token')) as Token__factory
+  return (await factory.deploy(initialSupply)).deployed()
+}
 
 describe('Token', () => {
-  const initialSupply = parseEther('1000000')
-
-  let initializeToken: () => Promise<Token>
-  let token: Token
-
-  before(async () => {
-    initializeToken = async () => {
-      const factory = (await ethers.getContractFactory('Token')) as Token__factory
-      return (await factory.deploy(initialSupply)).deployed()
-    }
-  })
-
   describe('#name()', () => {
-    let result: string
+    it('should return name', async () => {
+      const token = await initializeToken()
 
-    before(async () => {
-      token = await initializeToken()
+      const result = await token.name()
 
-      result = await token.name()
+      expect(result).to.equal('ToDEX')
     })
-
-    it('should return name', () => expect(result).to.equal('ToDEX'))
   })
 
   describe('#symbol()', () => {
-    let result: string
+    it('should return symbol', async () => {
+      const token = await initializeToken()
 
-    before(async () => {
-      token = await initializeToken()
+      const result = await token.symbol()
 
-      result = await token.symbol()
+      expect(result).to.equal('TDX')
     })
-
-    it('should return symbol', () => expect(result).to.equal('TDX'))
   })
 
   describe('#decimals()', () => {
-    let result: number
+    it('should return decimals', async () => {
+      const token = await initializeToken()
 
-    before(async () => {
-      token = await initializeToken()
+      const result = await token.decimals()
 
-      result = await token.decimals()
+      expect(result.toString()).to.equal('18')
     })
-
-    it('should return decimals', () => expect(result).to.equal(18))
   })
 
   describe('#totalSupply()', () => {
-    let result: BigNumber
+    it('should return token supply', async () => {
+      const token = await initializeToken()
 
-    before(async () => {
-      token = await initializeToken()
+      const result = await token.totalSupply()
 
-      result = await token.totalSupply()
+      expect(result).to.equal(initialSupply)
     })
-
-    it('should return total supply', () => expect(result).to.equal(initialSupply))
   })
 })

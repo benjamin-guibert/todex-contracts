@@ -25,10 +25,11 @@ contract Exchange {
         uint256 sellAmount;
         address buyToken;
         uint256 buyAmount;
+        uint256 timestamp;
     }
 
     address public feeAccount;
-    uint32 public feePercent;
+    uint256 public feePercent;
     mapping(address => uint256) public ethBalanceOf;
     mapping(address => mapping(address => uint256)) public tokenBalanceOf;
     mapping(uint256 => Order) public orders;
@@ -48,7 +49,8 @@ contract Exchange {
         address sellToken,
         uint256 sellAmount,
         address buyToken,
-        uint256 buyAmount
+        uint256 buyAmount,
+        uint256 timestamp
     );
 
     event CancelOrder(
@@ -67,10 +69,11 @@ contract Exchange {
         uint256 sellAmount,
         address buyAccount,
         address buyToken,
-        uint256 buyAmount
+        uint256 buyAmount,
+        uint256 timestamp
     );
 
-    constructor(address _feeAccount, uint32 _feePercent) {
+    constructor(address _feeAccount, uint256 _feePercent) {
         feeAccount = _feeAccount;
         feePercent = _feePercent;
     }
@@ -125,10 +128,19 @@ contract Exchange {
             _sellToken,
             _sellAmount,
             _buyToken,
-            _buyAmount
+            _buyAmount,
+            block.timestamp
         );
 
-        emit CreateOrder(ordersCounter.current(), msg.sender, _sellToken, _sellAmount, _buyToken, _buyAmount);
+        emit CreateOrder(
+            ordersCounter.current(),
+            msg.sender,
+            _sellToken,
+            _sellAmount,
+            _buyToken,
+            _buyAmount,
+            block.timestamp
+        );
     }
 
     function cancelOrder(uint256 _id) public {
@@ -200,6 +212,15 @@ contract Exchange {
             tokenBalanceOf[_sellToken][_buyAccount] = tokenBalanceOf[_sellToken][_buyAccount].add(_sellAmount);
         }
 
-        emit Trade(_orderId, _sellAccount, _sellToken, _sellAmount, _buyAccount, _buyToken, _buyAmount);
+        emit Trade(
+            _orderId,
+            _sellAccount,
+            _sellToken,
+            _sellAmount,
+            _buyAccount,
+            _buyToken,
+            _buyAmount,
+            block.timestamp
+        );
     }
 }

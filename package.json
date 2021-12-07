@@ -19,6 +19,7 @@
     "format": "prettier '**/*.{md,json,js,ts,sol}' --write && eslint '**/*.{md,js,ts}' --fix && solhint 'contracts/**/*.sol' --fix",
     "lint": "eslint '**/*.{md,js,ts}' && prettier '**/*.{json,sol}' --check && solhint 'contracts/**/*.sol'",
     "compile": "hardhat compile",
+    "clean": "hardhat clean",
     "console": "hardhat console",
     "server": "hardhat node",
     "test": "hardhat test",
