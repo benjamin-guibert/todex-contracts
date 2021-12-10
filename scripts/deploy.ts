@@ -3,7 +3,7 @@ import { ethers } from 'hardhat'
 
 const { parseEther } = ethers.utils
 const initialSupply = parseEther('1000000')
-const feePercent = 10
+const feePercent = 1
 
 export const main = async () => {
   initializeScript()
