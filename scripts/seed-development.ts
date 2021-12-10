@@ -23,27 +23,55 @@ const main = async () => {
   token = new ethers.Contract(tokenAddress, (await artifacts.readArtifact('Token')).abi, deployer) as Token
   exchange = new ethers.Contract(exchangeAddress, (await artifacts.readArtifact('Exchange')).abi, deployer) as Exchange
 
-  await token.transfer(user2.address, parseEther('100'))
-  await token.transfer(user3.address, parseEther('100'))
-  await token.connect(user1).approve(exchange.address, parseEther('1000'))
-  await token.connect(user2).approve(exchange.address, parseEther('1000'))
-  await token.connect(user3).approve(exchange.address, parseEther('1000'))
+  await token.transfer(user2.address, parseEther('100000'))
+  await token.transfer(user3.address, parseEther('100000'))
+  await token.connect(user1).approve(exchange.address, parseEther('100000'))
+  await token.connect(user2).approve(exchange.address, parseEther('100000'))
+  await token.connect(user3).approve(exchange.address, parseEther('100000'))
 
-  await exchange.connect(user1).depositEther({ value: parseEther('10') })
-  await exchange.connect(user2).depositEther({ value: parseEther('10') })
-  await exchange.connect(user2).depositToken(token.address, parseEther('10'))
-  await exchange.connect(user3).depositToken(token.address, parseEther('10'))
+  await exchange.connect(user1).depositEther({ value: parseEther('1000') })
+  await exchange.connect(user2).depositEther({ value: parseEther('1000') })
+  await exchange.connect(user2).depositToken(token.address, parseEther('100000'))
+  await exchange.connect(user3).depositToken(token.address, parseEther('100000'))
   await logState()
 
-  await createOrder(user1, ETHER_ADDRESS, parseEther('1'), token.address, parseEther('1.1'))
-  await fillOrder(user2, 1)
-  await createOrder(user2, token.address, parseEther('1.1'), ETHER_ADDRESS, parseEther('0.9'))
-  await fillOrder(user1, 2)
-  await createOrder(user1, ETHER_ADDRESS, parseEther('0.9'), token.address, parseEther('0.8'))
-  await fillOrder(user3, 3)
-  await createOrder(user1, token.address, parseEther('0.9'), ETHER_ADDRESS, parseEther('0.8'))
-  await createOrder(user2, ETHER_ADDRESS, parseEther('1'), token.address, parseEther('1.2'))
-  await createOrder(user3, token.address, parseEther('1.5'), ETHER_ADDRESS, parseEther('1.1'))
+  await createOrder(user1, token.address, parseEther('900'), ETHER_ADDRESS, parseEther('0.8'))
+  await createOrder(user2, ETHER_ADDRESS, parseEther('1'), token.address, parseEther('1200'))
+  await createOrder(user3, token.address, parseEther('1500'), ETHER_ADDRESS, parseEther('1.1'))
+
+  // Trades:
+  //    #4          #5          #6          #7            #8
+  // 1  -1/+1100    -1/+1100    -0.9/+800   +2.9/-3000
+  // 2  +1/-1100    +1/-1100                -2.9/+3000    +0.9/-800
+  // 3                          +0.9/-800                 -0.9/+800
+
+  // Balances after trade:
+  // 1  99/1100     98/2200     97.1/3000   100/0         100/0
+  // 2  100/98900   101/97800   101/97800   98.1/100800   99/100000
+  // 3  0/100000    0/100000    0.9/99200   0.9/99200     0/100000
+
+  for (let orderId = 4; orderId < 999999; orderId++) {
+    await createOrder(user1, ETHER_ADDRESS, parseEther('1'), token.address, parseEther('1100'))
+    wait(20)
+    await createOrder(user2, token.address, parseEther('1100'), ETHER_ADDRESS, parseEther('0.9'))
+    wait(20)
+    await createOrder(user1, ETHER_ADDRESS, parseEther('0.9'), token.address, parseEther('800'))
+    wait(20)
+    await fillOrder(user2, orderId++)
+    wait(20)
+    await fillOrder(user1, orderId++)
+    wait(20)
+    await fillOrder(user3, orderId++)
+    wait(20)
+    await createOrder(user2, token.address, parseEther('3000'), ETHER_ADDRESS, parseEther('2.9'))
+    wait(20)
+    await createOrder(user3, token.address, parseEther('800'), ETHER_ADDRESS, parseEther('0.9'))
+    wait(20)
+    await fillOrder(user1, orderId++)
+    wait(20)
+    await fillOrder(user2, orderId)
+    wait(20)
+  }
 }
 
 const createOrder = async (
