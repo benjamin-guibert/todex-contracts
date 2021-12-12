@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
-import { Exchange__factory, Token__factory } from '../../typechain-types'
+import { Exchange, Exchange__factory, Token, Token__factory } from '../../typechain-types'
 import { getTransactionEvent, getUnixTimestamp } from './helpers'
 
 const { AddressZero: ETHER_ADDRESS, Zero } = ethers.constants
@@ -112,26 +112,80 @@ describe('Exchange', () => {
     })
   })
 
-  describe('#orders()', () => {
-    it('should return orders', async () => {
-      const sellAmount = parseEther('1')
-      const buyAmount = parseEther('1000')
-      const token = await initializeToken()
-      const exchange = await initializeExchange()
-      await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, sellAmount)
-      await exchange.connect(user1).createOrder(ETHER_ADDRESS, sellAmount, token.address, buyAmount)
-      await exchange.connect(user1).createOrder(ETHER_ADDRESS, buyAmount, token.address, buyAmount)
+  describe('orders', () => {
+    const ethAmount = parseEther('1')
+    const tokenAmount = parseEther('1000')
+    let token: Token
+    let exchange: Exchange
 
-      const result = await exchange.orders(2)
+    before(async () => {
+      token = await initializeToken()
+      exchange = await initializeExchange()
+      await token.transfer(user2.address, parseEther('1100'))
+      await exchange.connect(user1).depositEther({ value: ethAmount })
+      await token.connect(user2).approve(exchange.address, parseEther('1100'))
+      await exchange.connect(user2).depositToken(token.address, parseEther('1100'))
+      await exchange.connect(user1).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
+      await exchange.connect(user1).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
+      await exchange.connect(user1).createOrder(ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
+      await exchange.connect(user1).cancelOrder(1)
+      await exchange.connect(user2).fillOrder(3)
+    })
 
-      expect(result[0].toString()).to.equal('2')
-      expect(result[1]).to.equal(Zero)
-      expect(result[2]).to.equal(user1.address)
-      expect(result[3]).to.equal(ETHER_ADDRESS)
-      expect(result[4]).to.equal(sellAmount)
-      expect(result[5]).to.equal(token.address)
-      expect(result[6]).to.equal(buyAmount)
-      expect(result[7].gt(Zero)).to.be.true
+    describe('#orders()', () => {
+      it('should return order', async () => {
+        const result = await exchange.orders(2)
+
+        expect(result[0].toString()).to.equal('2')
+        expect(result[1]).to.equal(user1.address)
+        expect(result[2]).to.equal(ETHER_ADDRESS)
+        expect(result[3]).to.equal(ethAmount)
+        expect(result[4]).to.equal(token.address)
+        expect(result[5]).to.equal(tokenAmount)
+        expect(result[6].gt(Zero)).to.be.true
+      })
+    })
+
+    describe('#pendingOrders()', () => {
+      it('should return true when pending order', async () => {
+        const result = await exchange.connect(user1).pendingOrders(2)
+
+        expect(result).to.be.true
+      })
+
+      it('should return true when not pending order', async () => {
+        const result = await exchange.connect(user1).pendingOrders(1)
+
+        expect(result).to.be.false
+      })
+    })
+
+    describe('#cancelledOrders()', () => {
+      it('should return true when cancelled order', async () => {
+        const result = await exchange.connect(user1).cancelledOrders(1)
+
+        expect(result).to.be.true
+      })
+
+      it('should return true when not cancelled order', async () => {
+        const result = await exchange.connect(user1).cancelledOrders(2)
+
+        expect(result).to.be.false
+      })
+    })
+
+    describe('#filledOrders()', () => {
+      it('should return true when filled order', async () => {
+        const result = await exchange.connect(user1).filledOrders(3)
+
+        expect(result).to.be.true
+      })
+
+      it('should return true when not filled order', async () => {
+        const result = await exchange.connect(user1).filledOrders(1)
+
+        expect(result).to.be.false
+      })
     })
   })
 
@@ -300,13 +354,15 @@ describe('Exchange', () => {
 
       const order = await exchange.orders(1)
       expect(order[0].toString()).to.equal('1')
-      expect(order[1]).to.equal(Zero)
-      expect(order[2]).to.equal(user1.address)
-      expect(order[3]).to.equal(ETHER_ADDRESS)
-      expect(order[4]).to.equal(ethAmount)
-      expect(order[5]).to.equal(token.address)
-      expect(order[6]).to.equal(tokenAmount)
-      expect(order[7].toNumber()).to.be.closeTo(getUnixTimestamp(), 1000)
+      expect(order[1]).to.equal(user1.address)
+      expect(order[2]).to.equal(ETHER_ADDRESS)
+      expect(order[3]).to.equal(ethAmount)
+      expect(order[4]).to.equal(token.address)
+      expect(order[5]).to.equal(tokenAmount)
+      expect(order[6].toNumber()).to.be.closeTo(getUnixTimestamp(), 1000)
+      expect(await exchange.pendingOrders(1)).to.be.true
+      expect(await exchange.cancelledOrders(1)).to.be.false
+      expect(await exchange.filledOrders(1)).to.be.false
       expect(transaction).to.emit(exchange, 'CreateOrder')
       const event = await getTransactionEvent(exchange, transaction, 'CreateOrder')
       expect(event.id.toString()).to.equal('1')
@@ -339,8 +395,9 @@ describe('Exchange', () => {
 
       const transaction = await exchange.connect(user1).cancelOrder(1)
 
-      const order = await exchange.orders(1)
-      expect(order[1].toString()).to.equal('2')
+      expect(await exchange.pendingOrders(1)).to.be.false
+      expect(await exchange.cancelledOrders(1)).to.be.true
+      expect(await exchange.filledOrders(1)).to.be.false
       await expect(transaction)
         .to.emit(exchange, 'CancelOrder')
         .withArgs(1, user1.address, ETHER_ADDRESS, ethAmount, token.address, tokenAmount)
@@ -401,8 +458,9 @@ describe('Exchange', () => {
 
         const transaction = await exchange.connect(user1).fillOrder(1)
 
-        const order = await exchange.orders(1)
-        expect(order[1].toString()).to.equal('1')
+        expect(await exchange.pendingOrders(1)).to.be.false
+        expect(await exchange.cancelledOrders(1)).to.be.false
+        expect(await exchange.filledOrders(1)).to.be.true
         let balance = await exchange.ethBalanceOf(user1.address)
         expect(balance).to.equal(ethAmount)
         balance = await exchange.ethBalanceOf(user2.address)
@@ -462,8 +520,9 @@ describe('Exchange', () => {
 
         const transaction = await exchange.connect(user1).fillOrder(1)
 
-        const order = await exchange.orders(1)
-        expect(order[1].toString()).to.equal('1')
+        expect(await exchange.pendingOrders(1)).to.be.false
+        expect(await exchange.cancelledOrders(1)).to.be.false
+        expect(await exchange.filledOrders(1)).to.be.true
         let balance = await exchange.tokenBalanceOf(token.address, user1.address)
         expect(balance).to.equal(tokenAmount)
         balance = await exchange.tokenBalanceOf(token.address, user2.address)

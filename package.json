@@ -23,7 +23,7 @@
     "console": "hardhat console",
     "server": "NODE_OPTIONS=--openssl-legacy-provider hardhat node",
     "reset": "hardhat --network localhost reset",
-    "test": "hardhat test",
+    "test": "NODE_OPTIONS=--openssl-legacy-provider hardhat test",
     "deploy:local": "hardhat --network localhost run scripts/deploy.ts",
     "seed:local": "hardhat --network localhost run scripts/seed-development.ts"
   },
