@@ -11,15 +11,8 @@ contract Exchange {
 
     address private constant ETHER = address(0);
 
-    enum OrderStatuses {
-        Pending,
-        Filled,
-        Cancelled
-    }
-
     struct Order {
         uint256 id;
-        OrderStatuses status;
         address account;
         address sellToken;
         uint256 sellAmount;
@@ -33,6 +26,9 @@ contract Exchange {
     mapping(address => uint256) public ethBalanceOf;
     mapping(address => mapping(address => uint256)) public tokenBalanceOf;
     mapping(uint256 => Order) public orders;
+    mapping(uint256 => bool) public pendingOrders;
+    mapping(uint256 => bool) public filledOrders;
+    mapping(uint256 => bool) public cancelledOrders;
     Counters.Counter private ordersCounter;
 
     event DepositEther(address account, uint256 amount, uint256 newBalance);
@@ -121,44 +117,31 @@ contract Exchange {
         require(_buyToken != _sellToken, "Assets are identical");
 
         ordersCounter.increment();
-        orders[ordersCounter.current()] = Order(
-            ordersCounter.current(),
-            OrderStatuses.Pending,
-            msg.sender,
-            _sellToken,
-            _sellAmount,
-            _buyToken,
-            _buyAmount,
-            block.timestamp
-        );
+        uint256 orderId = ordersCounter.current();
+        orders[orderId] = Order(orderId, msg.sender, _sellToken, _sellAmount, _buyToken, _buyAmount, block.timestamp);
+        pendingOrders[orderId] = true;
 
-        emit CreateOrder(
-            ordersCounter.current(),
-            msg.sender,
-            _sellToken,
-            _sellAmount,
-            _buyToken,
-            _buyAmount,
-            block.timestamp
-        );
+        emit CreateOrder(orderId, msg.sender, _sellToken, _sellAmount, _buyToken, _buyAmount, block.timestamp);
     }
 
     function cancelOrder(uint256 _id) public {
         Order storage order = _getRequiredOrder(_id);
-        require(order.status == OrderStatuses.Pending, "Order not cancellable");
+        require(pendingOrders[_id], "Order not cancellable");
         require(order.account == msg.sender, "Not owner of the order");
 
-        order.status = OrderStatuses.Cancelled;
+        pendingOrders[_id] = false;
+        cancelledOrders[_id] = true;
 
         emit CancelOrder(order.id, order.account, order.sellToken, order.sellAmount, order.buyToken, order.buyAmount);
     }
 
     function fillOrder(uint256 _id) public {
         Order storage order = _getRequiredOrder(_id);
-        require(order.status == OrderStatuses.Pending, "Order not fillable");
+        require(pendingOrders[_id], "Order not fillable");
 
         _trade(_id, order.account, order.sellToken, order.sellAmount, msg.sender, order.buyToken, order.buyAmount);
-        order.status = OrderStatuses.Filled;
+        pendingOrders[_id] = false;
+        filledOrders[_id] = true;
     }
 
     function _getRequiredOrder(uint256 _id) private view returns (Order storage) {
